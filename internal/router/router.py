@@ -31,6 +31,7 @@ class Router:
 
         # 2. 將url與對應控制器方法做綁定
         bp.add_url_rule("/ping", view_func=self.app_handler.ping)
+        bp.add_url_rule("/app/completion", methods=["POST"], view_func=self.app_handler.completion)
 
         # 3.應用上去注冊藍圖
         app.register_blueprint(bp)
