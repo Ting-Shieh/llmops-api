@@ -5,10 +5,11 @@
 @Author : zsting29@gmail.com
 @File   : app_handler.py
 """
-from flask import request
+from flask import request, jsonify
 from openai import OpenAI
 
 from internal.schema.app_schema import CompletionReq
+from pkg.response import Response, HttpCode
 
 
 class AppHandler:
@@ -39,9 +40,12 @@ class AppHandler:
                 },
             ]
         )
-        print(completion.choices[0].message)
+        # print(completion.choices[0].message)
         content = completion.choices[0].message.content
-        return content
+
+        resp = Response(code=HttpCode.SUCCESS, message="", data={"content": content})
+
+        return jsonify(resp), 200
 
     def ping(self):
         return {"ping": "pong"}
