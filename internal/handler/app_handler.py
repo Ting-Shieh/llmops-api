@@ -5,11 +5,11 @@
 @Author : zsting29@gmail.com
 @File   : app_handler.py
 """
-from flask import request, jsonify
+from flask import request
 from openai import OpenAI
 
 from internal.schema.app_schema import CompletionReq
-from pkg.response import Response, HttpCode
+from pkg.response import success_json, validate_error_json
 
 
 class AppHandler:
@@ -20,7 +20,7 @@ class AppHandler:
         # 1.獲取接口的參數
         req = CompletionReq()
         if not req.validate():
-            return req.errors
+            return validate_error_json(req.errors)
         query = request.json.get("query")
         # 2.構建OpenAI客戶端，並發起請求
         client = OpenAI(
@@ -43,9 +43,7 @@ class AppHandler:
         # print(completion.choices[0].message)
         content = completion.choices[0].message.content
 
-        resp = Response(code=HttpCode.SUCCESS, message="", data={"content": content})
-
-        return jsonify(resp), 200
+        return success_json({"content": content})
 
     def ping(self):
         return {"ping": "pong"}
