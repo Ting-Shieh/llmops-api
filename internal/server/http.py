@@ -8,6 +8,7 @@
 import os
 
 from flask import Flask
+from flask_sqlalchemy import SQLAlchemy
 
 from config import Config
 from internal.exception import CustomException
@@ -18,15 +19,21 @@ from pkg.response import Response, json, HttpCode
 class Http(Flask):
     """Http服務引擎"""
 
-    def __init__(self, *args, conf: Config, router: Router, **kwargs):
+    def __init__(self, *args, conf: Config, db: SQLAlchemy, router: Router, **kwargs):
+        # 調用父類構造函數初始化
         super().__init__(*args, **kwargs)
-        # 註冊應用路由
-        router.register_router(self)
+
+        # 初始化應用配置
+        self.config.from_object(conf)
 
         # 註冊綁定異常錯誤處理
         self.register_error_handler(Exception, self._register_error_handler)
 
-        self.config.from_object(conf)
+        # 初始化Flask 擴展
+        db.init_app(self)
+
+        # 註冊應用路由
+        router.register_router(self)
 
     def _register_error_handler(self, error: Exception):
         #  異常訊息是否為自定義異常，若是則可提取message & code訊息．

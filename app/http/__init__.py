@@ -5,3 +5,6 @@
 @Author : zsting29@gmail.com
 @File   : __init__.py.py
 """
+from .module import ExtensionModule
+
+__all__ = ["ExtensionModule"]
