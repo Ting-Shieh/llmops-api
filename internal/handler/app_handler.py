@@ -5,15 +5,40 @@
 @Author : zsting29@gmail.com
 @File   : app_handler.py
 """
+import uuid
+from dataclasses import dataclass
+
 from flask import request
+from injector import inject
 from openai import OpenAI
 
 from internal.schema.app_schema import CompletionReq
-from pkg.response import success_json, validate_error_json
+from internal.service import AppService
+from pkg.response import success_json, validate_error_json, success_message
 
 
+@inject
+@dataclass
 class AppHandler:
     """應用控制器"""
+    app_service: AppService
+
+    def create_app(self):
+        """調用服務創建新的App紀錄"""
+        app = self.app_service.create_app()
+        return success_message(f"應用已經成功創建，id為{app.id}")
+
+    def get_app(self, id: uuid.UUID):
+        app = self.app_service.get_app(id)
+        return success_message(f"應用已經成功獲取，應用名稱為{app.name}")
+
+    def update_app(self, id: uuid.UUID):
+        app = self.app_service.update_app(id)
+        return success_message(f"應用已經成功修改，修改後的應用名稱為{app.name}")
+
+    def delete_app(self, id: uuid.UUID):
+        app = self.app_service.delete_app(id)
+        return success_message(f"應用已經成功刪除，id為{app.id}")
 
     def completion(self):
         """聊天接口"""
