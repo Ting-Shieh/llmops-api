@@ -8,9 +8,10 @@
 import uuid
 from dataclasses import dataclass
 
-from flask import request
 from injector import inject
-from openai import OpenAI
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_openai import ChatOpenAI
 
 from internal.schema.app_schema import CompletionReq
 from internal.service import AppService
@@ -46,27 +47,21 @@ class AppHandler:
         req = CompletionReq()
         if not req.validate():
             return validate_error_json(req.errors)
-        query = request.json.get("query")
+
+        prompt = ChatPromptTemplate.from_template("{query}")
+
         # 2.構建OpenAI客戶端，並發起請求
-        client = OpenAI(
-            # api_key="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"
-        )
+        llm = ChatOpenAI(model="gpt-4o")
+
         # 3.得到請求響應，然後將OpenAI的響應傳遞給前端
-        completion = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {
-                    "role": "system",
-                    "content": "你是OpenAI開發的聊天機器人，請根據用戶的輸入回覆對應的訊息．",
-                },
-                {
-                    "role": "user",
-                    "content": query,
-                },
-            ]
+        ai_message = llm.invoke(
+            prompt.invoke({"query": req.query.data})
         )
-        # print(completion.choices[0].message)
-        content = completion.choices[0].message.content
+
+        parser = StrOutputParser()
+
+        # 4.解析響應內容
+        content = parser.invoke(ai_message)
 
         return success_json({"content": content})
 
