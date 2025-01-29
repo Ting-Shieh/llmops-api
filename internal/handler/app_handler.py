@@ -48,21 +48,17 @@ class AppHandler:
         if not req.validate():
             return validate_error_json(req.errors)
 
+        # 2.create components
         prompt = ChatPromptTemplate.from_template("{query}")
-
-        # 2.構建OpenAI客戶端，並發起請求
-        llm = ChatOpenAI(model="gpt-4o")
-
-        # 3.得到請求響應，然後將OpenAI的響應傳遞給前端
-        ai_message = llm.invoke(
-            prompt.invoke({"query": req.query.data})
-        )
-
+        llm = ChatOpenAI(model="gpt-4o")  # 構建OpenAI客戶端
         parser = StrOutputParser()
 
-        # 4.解析響應內容
-        content = parser.invoke(ai_message)
+        # 3. create chain
+        chain = prompt | llm | parser
 
+        # 4.call chain and get result
+        content = chain.invoke({"query": req.query.data})
+        
         return success_json({"content": content})
 
     def ping(self):
