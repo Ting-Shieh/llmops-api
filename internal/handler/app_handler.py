@@ -41,7 +41,7 @@ class AppHandler:
         app = self.app_service.delete_app(id)
         return success_message(f"應用已經成功刪除，id為{app.id}")
 
-    def completion(self):
+    def debug(self, app_id: uuid.UUID):
         """聊天接口"""
         # 1.獲取接口的參數
         req = CompletionReq()
@@ -58,7 +58,7 @@ class AppHandler:
 
         # 4.call chain and get result
         content = chain.invoke({"query": req.query.data})
-        
+
         return success_json({"content": content})
 
     def ping(self):
