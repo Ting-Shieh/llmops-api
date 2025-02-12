@@ -8,6 +8,7 @@
 import os
 
 from flask import Flask
+from flask_cors import CORS
 from flask_migrate import Migrate
 
 from config import Config
@@ -44,6 +45,17 @@ class Http(Flask):
         # with self.app_context():
         #     _ = App()
         #     db.create_all()
+
+        # CORS
+        CORS(self, resources={
+            r"/*": {
+                "origins": "*",
+                "supports_credentials": True,
+                # # 以下可以不用配置
+                # "methods": ["GET", "POST"],
+                # "allow_headers": ["Content-Type"],
+            }
+        })
 
         # 註冊應用路由
         router.register_router(self)
