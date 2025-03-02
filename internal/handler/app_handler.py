@@ -5,12 +5,17 @@
 @Author : zsting29@gmail.com
 @File   : app_handler.py
 """
+import os
 import uuid
 from dataclasses import dataclass
+from operator import itemgetter
 
 from injector import inject
+from langchain.memory import ConversationBufferWindowMemory
+from langchain_community.chat_message_histories import FileChatMessageHistory
 from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.runnables import RunnablePassthrough, RunnableLambda
 from langchain_openai import ChatOpenAI
 
 from internal.schema.app_schema import CompletionReq
@@ -48,16 +53,35 @@ class AppHandler:
         if not req.validate():
             return validate_error_json(req.errors)
 
-        # 2.create components
-        prompt = ChatPromptTemplate.from_template("{query}")
-        llm = ChatOpenAI(model="gpt-4o")  # 構建OpenAI客戶端
-        parser = StrOutputParser()
+        # 2.創建prompt與記憶
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", "你是一個強大的聊天機器人，能依據用戶提問回覆對應問題"),
+            MessagesPlaceholder("history"),
+            ("human", "{query}"),
+        ])
+        print(os.getcwd())
+        print(os.path.abspath('.'))
+        memory = ConversationBufferWindowMemory(
+            k=3,
+            input_key="query",
+            output_key="output",
+            return_messages=True,
+            chat_memory=FileChatMessageHistory("../../storage/memory/chat_history.txt")
+            # ./storage/memory/chat_history.txt
+        )
 
-        # 3. create chain
-        chain = prompt | llm | parser
+        # 3.create llm
+        llm = ChatOpenAI(model="gpt-3.5-turbo-16k")  # 構建OpenAI客戶端
 
-        # 4.call chain and get result
-        content = chain.invoke({"query": req.query.data})
+        # 4..create LCEL
+        chain = RunnablePassthrough.assign(
+            history=RunnableLambda(memory.load_memory_variables) | itemgetter("history")
+        ) | prompt | llm | StrOutputParser()
+
+        # 5.call chain and get result
+        chain_input = {"query": req.query.data}
+        content = chain.invoke(chain_input)
+        memory.save_context(chain_input, {"output": content})  # (用戶輸入, AI 輸出)
 
         return success_json({"content": content})
 
