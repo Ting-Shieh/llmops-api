@@ -9,11 +9,11 @@ import dotenv
 from flask_migrate import Migrate
 from injector import Injector
 
+from app.http.module import ExtensionModule
 # from app.http import ExtensionModule
 from config import Config
 from internal.router import Router
 from internal.server import Http
-from module import ExtensionModule
 from pkg.sqlalchemy import SQLAlchemy
 
 # 將.env 加載到環境變量中
