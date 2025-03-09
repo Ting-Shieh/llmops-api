@@ -6,7 +6,7 @@
 @File   : module.py
 """
 from flask_migrate import Migrate
-from injector import Binder, Module
+from injector import Binder, Module, Injector
 
 from internal.extension.database_extension import db
 from internal.extension.migrate_extension import migrate
@@ -19,3 +19,6 @@ class ExtensionModule(Module):
     def configure(self, binder: Binder) -> None:
         binder.bind(SQLAlchemy, to=db)
         binder.bind(Migrate, to=migrate)
+
+
+injector = Injector([ExtensionModule])

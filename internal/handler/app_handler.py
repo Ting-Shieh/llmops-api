@@ -9,13 +9,16 @@ import os
 import uuid
 from dataclasses import dataclass
 from operator import itemgetter
+from typing import Dict, Any
 
 from injector import inject
 from langchain.memory import ConversationBufferWindowMemory
 from langchain_community.chat_message_histories import FileChatMessageHistory
+from langchain_core.memory import BaseMemory
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.runnables import RunnablePassthrough, RunnableLambda
+from langchain_core.runnables import RunnablePassthrough, RunnableLambda, RunnableConfig
+from langchain_core.tracers import Run
 from langchain_openai import ChatOpenAI
 
 from internal.schema.app_schema import CompletionReq
@@ -46,6 +49,24 @@ class AppHandler:
         app = self.app_service.delete_app(id)
         return success_message(f"應用已經成功刪除，id為{app.id}")
 
+    @classmethod
+    def _load_memory_variable(cls, input: Dict[str, Any], config: RunnableConfig) -> Dict[str, Any]:
+        """加載記憶變量訊息"""
+        # 1.從config獲取configurable
+        configurable = config.get("configurable", {})
+        configurable_memory = configurable.get("memory", None)
+        if configurable_memory is not None and isinstance(configurable_memory, BaseMemory):
+            return configurable_memory.load_memory_variables(input)
+        return {"history": []}
+
+    @classmethod
+    def _save_context(cls, run_obj: Run, config: RunnableConfig) -> None:
+        """存儲對應的上下文訊息到對應實體中"""
+        configurable = config.get("configurable", {})
+        configurable_memory = configurable.get("memory", None)
+        if configurable_memory is not None and isinstance(configurable_memory, BaseMemory):
+            configurable_memory.save_context(run_obj.inputs, run_obj.outputs)
+
     def debug(self, app_id: uuid.UUID):
         """聊天接口"""
         # 1.獲取接口的參數
@@ -74,14 +95,17 @@ class AppHandler:
         llm = ChatOpenAI(model="gpt-3.5-turbo-16k")  # 構建OpenAI客戶端
 
         # 4..create LCEL
-        chain = RunnablePassthrough.assign(
-            history=RunnableLambda(memory.load_memory_variables) | itemgetter("history")
-        ) | prompt | llm | StrOutputParser()
+        chain = (RunnablePassthrough.assign(
+            history=RunnableLambda(self._load_memory_variable) | itemgetter("history")
+        ) | prompt | llm | StrOutputParser()).with_listeners(on_end=self._save_context)
 
         # 5.call chain and get result
         chain_input = {"query": req.query.data}
-        content = chain.invoke(chain_input)
-        memory.save_context(chain_input, {"output": content})  # (用戶輸入, AI 輸出)
+        content = chain.invoke(chain_input, config={
+            "configurable": {
+                "mempry": memory,
+            }
+        })
 
         return success_json({"content": content})
 
