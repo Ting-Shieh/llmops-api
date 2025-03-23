@@ -5,7 +5,6 @@
 @Author : zsting29@gmail.com
 @File   : app_handler.py
 """
-import os
 import uuid
 from dataclasses import dataclass
 from operator import itemgetter
@@ -22,7 +21,7 @@ from langchain_core.tracers import Run
 from langchain_openai import ChatOpenAI
 
 from internal.schema.app_schema import CompletionReq
-from internal.service import AppService
+from internal.service import AppService, VectorDatabaseService
 from pkg.response import success_json, validate_error_json, success_message
 
 
@@ -31,6 +30,7 @@ from pkg.response import success_json, validate_error_json, success_message
 class AppHandler:
     """應用控制器"""
     app_service: AppService
+    vector_database_service: VectorDatabaseService
 
     def create_app(self):
         """調用服務創建新的App紀錄"""
@@ -75,13 +75,14 @@ class AppHandler:
             return validate_error_json(req.errors)
 
         # 2.創建prompt與記憶
+        system_prompt = "你是一個強大的聊天機器人，能依據對應的上下文和歷史對話訊息回覆用戶問題 \n\n<context>{context}</context>"
         prompt = ChatPromptTemplate.from_messages([
-            ("system", "你是一個強大的聊天機器人，能依據用戶提問回覆對應問題"),
+            ("system", system_prompt),
             MessagesPlaceholder("history"),
             ("human", "{query}"),
         ])
-        print(os.getcwd())
-        print(os.path.abspath('.'))
+        # print(os.getcwd())
+        # print(os.path.abspath('.'))
         memory = ConversationBufferWindowMemory(
             k=3,
             input_key="query",
@@ -95,8 +96,10 @@ class AppHandler:
         llm = ChatOpenAI(model="gpt-3.5-turbo-16k")  # 構建OpenAI客戶端
 
         # 4..create LCEL
+        retriever = self.vector_database_service.get_retriever() | self.vector_database_service.combine_documents
         chain = (RunnablePassthrough.assign(
-            history=RunnableLambda(self._load_memory_variable) | itemgetter("history")
+            history=RunnableLambda(self._load_memory_variable) | itemgetter("history"),
+            context=itemgetter("query") | retriever
         ) | prompt | llm | StrOutputParser()).with_listeners(on_end=self._save_context)
 
         # 5.call chain and get result
