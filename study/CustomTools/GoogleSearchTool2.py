@@ -8,7 +8,7 @@
 import dotenv
 from langchain_community.tools import GoogleSerperRun
 from langchain_community.utilities import GoogleSerperAPIWrapper
-from pydantic.v1 import BaseModel, Field
+from pydantic import BaseModel, Field
 
 dotenv.load_dotenv()
 
@@ -28,4 +28,4 @@ google_serper = GoogleSerperRun(
     api_wrapper=GoogleSerperAPIWrapper(),
 )
 
-print(google_serper.invoke("台積電現在股價多少"))
+# print(google_serper.invoke("台積電現在股價多少"))

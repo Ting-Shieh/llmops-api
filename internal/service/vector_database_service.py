@@ -25,6 +25,9 @@ class VectorDatabaseService:
 
     def __init__(self):
         # create and connect Weaviate Vector DB
+        cluster_url = os.getenv("WEAVIATE_URL")
+        api_key = os.getenv("WEAVIATE_API_KEY")
+        print(f"Connecting to Weaviate at {cluster_url} with API key {api_key[:10]}...")  # 仅打印前 10 个字符的 API 密钥
         self.client = weaviate.connect_to_weaviate_cloud(
             cluster_url=os.getenv("WEAVIATE_URL"),
             auth_credentials=Auth.api_key(os.getenv("WEAVIATE_API_KEY"))

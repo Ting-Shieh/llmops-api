@@ -12,7 +12,7 @@ from typing import Any, Type
 import dotenv
 import requests
 from langchain_core.tools import BaseTool
-from pydantic.v1 import BaseModel, Field
+from pydantic import BaseModel, Field
 
 dotenv.load_dotenv()
 
@@ -70,4 +70,4 @@ class GoogleWeatherTool(BaseTool):
 
 
 google_weather = GoogleWeatherTool()
-print(google_weather.invoke({"city": "台北"}))
+# print(google_weather.invoke({"city": "台北"}))
