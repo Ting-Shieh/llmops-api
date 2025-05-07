@@ -1,0 +1,7 @@
+- name: google
+  label: Google
+  description: Google服務提供商，涵蓋了Google Search等工具．
+  icon: icon.svg
+  background: "#E5E7EB"
+  category: 網路搜索
+
