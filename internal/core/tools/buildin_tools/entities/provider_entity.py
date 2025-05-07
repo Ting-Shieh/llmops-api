@@ -9,7 +9,7 @@ import os
 from typing import Any
 
 import yaml
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from internal.lib.helper import dynamic_import
 from .tool_entity import ToolEntity
@@ -30,8 +30,8 @@ class Provider(BaseModel):
     name: str  # 服務提供商名字
     position: int  # 服務提供商的順序
     provider_entity: ProviderEntity  # 服務提供商實體
-    tool_entity_map: dict[str, ToolEntity] = {}  # 工具實體映射表
-    tool_func_map: dict[str, Any] = {}  # 工具函數映射表
+    tool_entity_map: dict[str, ToolEntity] = Field(default_factory=dict)  # 工具實體映射表
+    tool_func_map: dict[str, Any] = Field(default_factory=dict)  # 工具函數映射表
 
     def __init__(self, **kwargs):
         """構造函數，完成對應服務提供商的初始化"""

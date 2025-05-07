@@ -1,14 +1,4 @@
 name: google_serper
 label: Google Serper Search
 description: 一個低成本的Google搜索API。當你需要回答有關時事的問題時，可以調用該工具。該工具的輸入是搜索查詢語句。
-params:
-  - name: image_size
-    label: 圖像大小
-    type: select
-    required: true
-    default: 1024x1024
-    options:
-      - value: 1024x1024
-        label: "方(1024x1024)"
-      - value: 512x512
-        label: "方(512x512)"
+params: [ ]

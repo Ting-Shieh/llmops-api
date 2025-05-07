@@ -8,7 +8,7 @@
 from enum import Enum
 from typing import Optional, Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ToolParamType(str, Enum):
@@ -28,7 +28,7 @@ class ToolParam(BaseModel):
     default: Optional[Any] = None  # 默認值
     min: Optional[float] = None  # 最小值
     max: Optional[float] = None  # 最大值
-    options: list[dict[str, Any]] = []  # 下拉菜單選項列表
+    options: list[dict[str, Any]] = Field(default_factory=list)  # 下拉菜單選項列表
 
 
 class ToolEntity(BaseModel):
@@ -36,4 +36,4 @@ class ToolEntity(BaseModel):
     name: str  # 工具名字
     label: str  # 工具標籤
     description: str  # 工具描述
-    params: list[ToolParam] = []  # 工具的參數訊息
+    params: list[ToolParam] = Field(default_factory=list)  # 工具的參數訊息
