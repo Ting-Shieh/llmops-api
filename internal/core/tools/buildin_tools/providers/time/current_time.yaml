@@ -1,0 +1,4 @@
+name: current_time
+label: 獲取當前時間
+description: 一個用於獲取當前時間的工具。
+params: [ ]

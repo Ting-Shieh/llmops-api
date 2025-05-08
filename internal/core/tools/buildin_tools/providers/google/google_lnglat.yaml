@@ -1,0 +1,4 @@
+name: google_lnglat
+label: Google Latitude And Longitude
+description: 輸入地名查詢所在經緯度。
+params: [ ]

@@ -1,0 +1,4 @@
+name: google_weather
+label: Google Weather
+description: 輸入地名查詢所在地天氣情況。
+params: [ ]
