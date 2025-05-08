@@ -119,8 +119,12 @@ class AppHandler:
         # print(google_serper)
         # print(google_serper.invoke("今天台積電最高股價是多少？"))
 
-        google = self.provide_factory.get_provider("google")
-        google_serper_entity = google.get_tool_entity("google_serper")
-        print(google_serper_entity)
+        # google = self.provide_factory.get_provider("google")
+        # google_serper_entity = google.get_tool_entity("google_serper")
+        # print(google_serper_entity)
 
-        return {"ping": "pong"}
+        # 獲取所有服務提供商
+        providers = self.provide_factory.get_provider＿entities()
+
+        return success_json({"providers": [provider.dict() for provider in providers]})
+        # return {"ping": "pong"}
