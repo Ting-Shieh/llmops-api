@@ -6,9 +6,11 @@
 @File   : __init__.py.py
 """
 from .app_service import AppService
+from .buildin_tool_service import BuildinToolService
 from .vector_database_service import VectorDatabaseService
 
 __all__ = [
     "AppService",
-    "VectorDatabaseService"
+    "VectorDatabaseService",
+    "BuildinToolService"
 ]

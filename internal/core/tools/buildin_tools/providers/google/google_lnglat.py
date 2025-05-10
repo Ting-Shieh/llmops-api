@@ -13,6 +13,8 @@ import requests
 from langchain_core.pydantic_v1 import BaseModel, Field
 from langchain_core.tools import BaseTool
 
+from internal.lib.helper import add_attribute
+
 
 class LngLatToolArgsSchema(BaseModel):
     city: str = Field(description="查詢目標城市的地理位置資訊")
@@ -50,6 +52,7 @@ class GoogleGeoTool(BaseTool):
             return f"獲取{kwargs.get('city', '')}地理位置資訊失敗"
 
 
+@add_attribute("args_schema", LngLatToolArgsSchema)
 def google_lnglat(**kwargs) -> BaseTool:
     """獲取Google Map地理位置工具"""
     return GoogleGeoTool()

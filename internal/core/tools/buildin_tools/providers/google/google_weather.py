@@ -13,6 +13,8 @@ import requests
 from langchain_core.pydantic_v1 import BaseModel, Field
 from langchain_core.tools import BaseTool
 
+from internal.lib.helper import add_attribute
+
 
 # dotenv.load_dotenv()
 
@@ -69,6 +71,7 @@ class GoogleWeatherTool(BaseTool):
             return f"獲取{kwargs.get('city', '')}天氣預報訊息失敗"
 
 
+@add_attribute("args_schema", WeatherToolArgsSchema)
 def google_weather(**kwargs) -> BaseTool:
     """獲取Google查詢天氣工具"""
     return GoogleWeatherTool()

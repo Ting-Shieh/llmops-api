@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from flask import Flask, Blueprint
 from injector import inject
 
-from internal.handler import AppHandler
+from internal.handler import AppHandler, BulidinToolHandler
 
 
 @inject
@@ -19,6 +19,7 @@ from internal.handler import AppHandler
 class Router:
     """路由"""
     app_handler: AppHandler
+    buildin_tool_handler: BulidinToolHandler
 
     # # 使用 @dataclass
     # def __init__(self, app_handler: AppHandler):
@@ -36,6 +37,13 @@ class Router:
         # bp.add_url_rule("/app/<uuid:id>", methods=["GET"], view_func=self.app_handler.get_app)
         # bp.add_url_rule("/app/<uuid:id>", methods=["POST"], view_func=self.app_handler.update_app)
         # bp.add_url_rule("/app/<uuid:id>/delete", methods=["POST"], view_func=self.app_handler.delete_app)
+
+        # 內置插件廣場模塊
+        bp.add_url_rule("/buildin-tools", view_func=self.buildin_tool_handler.get_buildin_tools)
+        bp.add_url_rule(
+            "/buildin-tools/<string:provider_name>/tools/<string:tool_name>",
+            view_func=self.buildin_tool_handler.get_provider_tool
+        )
 
         # 3.應用上去注冊藍圖
         app.register_blueprint(bp)

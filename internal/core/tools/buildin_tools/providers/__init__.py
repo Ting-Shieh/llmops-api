@@ -5,6 +5,6 @@
 @Author : zsting29@gmail.com
 @File   : __init__.py.py
 """
-from .provider_factory import ProviderFactory
+from .buildin_provider_manager import BuildinProviderManager
 
-__all__ = ["ProviderFactory"]
+__all__ = ["BuildinProviderManager"]

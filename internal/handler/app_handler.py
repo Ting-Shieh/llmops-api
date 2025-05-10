@@ -20,7 +20,7 @@ from langchain_core.runnables import RunnablePassthrough, RunnableLambda, Runnab
 from langchain_core.tracers import Run
 from langchain_openai import ChatOpenAI
 
-from internal.core.tools.buildin_tools.providers import ProviderFactory
+from internal.core.tools.buildin_tools.providers import BuildinProviderManager
 from internal.schema.app_schema import CompletionReq
 from internal.service import AppService, VectorDatabaseService
 from pkg.response import success_json, validate_error_json, success_message
@@ -32,7 +32,7 @@ class AppHandler:
     """應用控制器"""
     app_service: AppService
     vector_database_service: VectorDatabaseService
-    provide_factory: ProviderFactory
+    buildin_provider_manager: BuildinProviderManager
 
     def create_app(self):
         """調用服務創建新的App紀錄"""
@@ -115,16 +115,16 @@ class AppHandler:
         return success_json({"content": content})
 
     def ping(self):
-        # google_serper = self.provide_factory.get_tool(provider_name="google", tool_name="google_serper")()
+        # google_serper = self.buildin_provider_manager.get_tool(provider_name="google", tool_name="google_serper")()
         # print(google_serper)
         # print(google_serper.invoke("今天台積電最高股價是多少？"))
 
-        # google = self.provide_factory.get_provider("google")
+        # google = self.buildin_provider_manager.get_provider("google")
         # google_serper_entity = google.get_tool_entity("google_serper")
         # print(google_serper_entity)
 
         # 獲取所有服務提供商
-        providers = self.provide_factory.get_provider＿entities()
+        providers = self.buildin_provider_manager.get_provider＿entities()
 
         return success_json({"providers": [provider.dict() for provider in providers]})
         # return {"ping": "pong"}

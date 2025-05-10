@@ -6,5 +6,6 @@
 @File   : __init__.py.py
 """
 from .app_handler import AppHandler
+from .bulidin_tool_handler import BulidinToolHandler
 
-__all__ = ["AppHandler"]
+__all__ = ["AppHandler", "BulidinToolHandler"]
