@@ -44,6 +44,14 @@ class Router:
             "/buildin-tools/<string:provider_name>/tools/<string:tool_name>",
             view_func=self.buildin_tool_handler.get_provider_tool
         )
+        bp.add_url_rule(
+            "/buildin-tools/<string:provider_name>/icon",
+            view_func=self.buildin_tool_handler.get_provider_icon
+        )
+        bp.add_url_rule(
+            "/buildin-tools/categories",
+            view_func=self.buildin_tool_handler.get_categories
+        )
 
         # 3.應用上去注冊藍圖
         app.register_blueprint(bp)

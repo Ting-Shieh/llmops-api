@@ -5,8 +5,10 @@
 @Author : zsting29@gmail.com
 @File   : bulidin_tool_handler.py
 """
+import io
 from dataclasses import dataclass
 
+from flask import send_file
 from injector import inject
 
 from internal.service import BuildinToolService
@@ -28,3 +30,13 @@ class BulidinToolHandler:
         """根據傳遞的提供商名稱和工具名稱獲取指定工具訊息"""
         buildin_tool = self.buildin_tool_service.get_provider_tools(provider_name, tool_name)
         return success_json(buildin_tool)
+
+    def get_provider_icon(self, provider_name: str):
+        """根據傳遞的提供商獲取icon圖標流訊息"""
+        icon, mimetype = self.buildin_tool_service.get_provider_icon(provider_name)
+        return send_file(io.BytesIO(icon), mimetype)
+
+    def get_categories(self):
+        """獲取所有內置提供商的分類訊息"""
+        categories = self.buildin_tool_service.get_categories()
+        return success_json(categories)
