@@ -5,6 +5,7 @@
 @Author : zsting29@gmail.com
 @File   : __init__.py.py
 """
+from .api_tool_service import ApiToolService
 from .app_service import AppService
 from .buildin_tool_service import BuildinToolService
 from .vector_database_service import VectorDatabaseService
@@ -12,5 +13,6 @@ from .vector_database_service import VectorDatabaseService
 __all__ = [
     "AppService",
     "VectorDatabaseService",
-    "BuildinToolService"
+    "BuildinToolService",
+    "ApiToolService"
 ]

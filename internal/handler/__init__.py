@@ -5,7 +5,12 @@
 @Author : zsting29@gmail.com
 @File   : __init__.py.py
 """
+from .api_tool_handler import ApiToolHandler
 from .app_handler import AppHandler
 from .bulidin_tool_handler import BulidinToolHandler
 
-__all__ = ["AppHandler", "BulidinToolHandler"]
+__all__ = [
+    "AppHandler",
+    "BulidinToolHandler",
+    "ApiToolHandler"
+]

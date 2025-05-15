@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from flask import Flask, Blueprint
 from injector import inject
 
-from internal.handler import AppHandler, BulidinToolHandler
+from internal.handler import AppHandler, BulidinToolHandler, ApiToolHandler
 
 
 @inject
@@ -20,6 +20,7 @@ class Router:
     """路由"""
     app_handler: AppHandler
     buildin_tool_handler: BulidinToolHandler
+    api_tool_handler: ApiToolHandler
 
     # # 使用 @dataclass
     # def __init__(self, app_handler: AppHandler):
@@ -51,6 +52,13 @@ class Router:
         bp.add_url_rule(
             "/buildin-tools/categories",
             view_func=self.buildin_tool_handler.get_categories
+        )
+
+        #  自定義API插件模塊
+        bp.add_url_rule(
+            "/api-tools/validate-openapi-schema",
+            methods=["POST"],
+            view_func=self.api_tool_handler.validate_openapi_schema
         )
 
         # 3.應用上去注冊藍圖
