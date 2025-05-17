@@ -7,11 +7,12 @@
 """
 import json
 from dataclasses import dataclass
+from uuid import UUID
 
 from injector import inject
 
 from internal.core.tools.api_tools.entities import OpenAPISchema
-from internal.exception import ValidateErrorException
+from internal.exception import ValidateErrorException, NotFoundException
 from internal.model import ApiToolProvider, ApiTool
 from internal.schema.api_tool_schema import CreateApiToolReq
 from pkg.sqlalchemy import SQLAlchemy
@@ -71,6 +72,20 @@ class ApiToolService:
 
         # 5.
         pass
+
+    def get_api_tool_provider(self, provider_id: UUID) -> ApiToolProvider:
+        """根據provider_id獲取工具提供者的原始訊息"""
+        # todo: 等待授權認證模塊完成進行切換調整
+        account_id = "12326394kajhdfugoudncj83"
+
+        # 1.查詢數據庫獲取對應數據
+        api_tool_provider = self.db.session.query(ApiToolProvider).get(provider_id)
+
+        # 2.檢驗數據是否為空，並判斷該數據是否屬於當前帳號
+        if api_tool_provider is None or str(api_tool_provider.account_id) != account_id:
+            raise NotFoundException("該工具提供者不存在")
+
+        return api_tool_provider
 
     @classmethod
     def parse_openapi_schema(cls, openapi_schema_str: str) -> OpenAPISchema:
