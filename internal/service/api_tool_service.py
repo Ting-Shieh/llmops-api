@@ -12,12 +12,65 @@ from injector import inject
 
 from internal.core.tools.api_tools.entities import OpenAPISchema
 from internal.exception import ValidateErrorException
+from internal.model import ApiToolProvider, ApiTool
+from internal.schema.api_tool_schema import CreateApiToolReq
+from pkg.sqlalchemy import SQLAlchemy
 
 
 @inject
 @dataclass
 class ApiToolService:
     """自定義API插件服務"""
+    db: SQLAlchemy
+
+    def create_api_tool(self, req: CreateApiToolReq) -> None:
+        """根據傳遞的請求創建自定義API工具"""
+        # todo: 等待授權認證模塊完成進行切換調整
+        account_id = "12326394kajhdfugoudncj83"
+
+        # 1.檢驗並提取openapi_schema對應的數據
+        openapi_schema = self.parse_openapi_schema(req.openapi_schema)
+
+        # 2.查詢當前登入的帳號是否已經創建相同名稱的工具提供者，如果是則拋出錯誤
+        api_tool_provider = self.db.session.query(ApiToolProvider).filter_by(
+            account_id=account_id,
+            name=req.name.data,
+        ).one_or_none()
+        if api_tool_provider:
+            raise ValidateErrorException(f"該工具提供者名字{req.name.data}已存在")
+
+        # 3.開啟數據庫的自動提交
+        with self.db.auto_commit():
+            # 4.首先創建工具提供者，並獲取工具提供者的id資訊，然後在創建工具資訊
+            api_tool_provider = ApiToolProvider(
+                account_id=account_id,
+                name=req.name.data,
+                icon=req.icon.data,
+                description=openapi_schema.description,
+                openapi_schema=req.openapi_schema.data,
+                headers=req.headers.data
+            )
+            self.db.session.add(api_tool_provider)
+            self.db.session.flush()
+
+            # 5.創建API工具並關聯api_tool_provider
+            for path, path_item in openapi_schema.paths.items():
+                for method, method_item in path_item.items():
+                    api_tol = ApiTool(
+                        account_id=account_id,
+                        provider_id=api_tool_provider.id,
+                        name=method_item.get("operationId"),
+                        description=method_item.get("description"),
+                        url=f"{openapi_schema.server}{path}",
+                        method=method,
+                        parameters=method_item.get("parameters", []),
+                    )
+                    self.db.session.add(api_tol)
+
+        # 4.
+
+        # 5.
+        pass
 
     @classmethod
     def parse_openapi_schema(cls, openapi_schema_str: str) -> OpenAPISchema:
