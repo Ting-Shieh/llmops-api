@@ -83,9 +83,24 @@ class ApiToolService:
 
         # 2.檢驗數據是否為空，並判斷該數據是否屬於當前帳號
         if api_tool_provider is None or str(api_tool_provider.account_id) != account_id:
-            raise NotFoundException("該工具提供者不存在")
+            raise NotFoundException("該工具提供者不存在。The tool provider does not exist.")
 
         return api_tool_provider
+
+    def get_api_tool(self, provider_id: UUID, tool_name: str) -> ApiTool:
+        """根據provider_id+tool_name獲取工具的詳情訊息"""
+        # todo: 等待授權認證模塊完成進行切換調整
+        account_id = "12326394kajhdfugoudncj83"
+
+        api_tool = self.db.session.query(ApiTool).filter_by(
+            provider_id=provider_id,
+            name=tool_name
+        ).one_or_none()
+
+        if api_tool is None or str(api_tool.account_id) != account_id:
+            raise NotFoundException("該工具不存在。The tool does not exist.")
+
+        return api_tool
 
     @classmethod
     def parse_openapi_schema(cls, openapi_schema_str: str) -> OpenAPISchema:

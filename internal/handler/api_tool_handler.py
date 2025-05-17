@@ -10,7 +10,8 @@ from uuid import UUID
 
 from injector import inject
 
-from internal.schema.api_tool_schema import ValidateOpenAPISchemaReq, CreateApiToolReq, GetApiToolProviderResp
+from internal.schema.api_tool_schema import ValidateOpenAPISchemaReq, CreateApiToolReq, GetApiToolProviderResp, \
+    GetApiToolResp
 from internal.service import ApiToolService
 from pkg.response import validate_error_json, success_message, success_json
 
@@ -40,6 +41,14 @@ class ApiToolHandler:
         resp = GetApiToolProviderResp()
 
         return success_json(resp.dump(api_tool_provider))
+
+    def get_api_tool(self, provider_id: UUID, tool_name: str):
+        """根據provider_id+tool_name獲取工具的詳情訊息"""
+        api_tool = self.api_tool_service.get_api_tool(provider_id, tool_name)
+
+        resp = GetApiToolResp()
+
+        return success_json(resp.dump(api_tool))
 
     def validate_openapi_schema(self):
         """校驗傳遞的openapi_schema字符串是否正確"""

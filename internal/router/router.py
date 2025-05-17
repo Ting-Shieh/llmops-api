@@ -69,6 +69,10 @@ class Router:
             "/api-tools/<uuid:provider_id>",
             view_func=self.api_tool_handler.get_api_tool_provider
         )
+        bp.add_url_rule(
+            "/api-tools/<uuid:provider_id>/tools/<string:tool_name>",
+            view_func=self.api_tool_handler.get_api_tool
+        )
 
         # 3.應用上去注冊藍圖
         app.register_blueprint(bp)

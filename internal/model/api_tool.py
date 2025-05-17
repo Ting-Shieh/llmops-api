@@ -59,3 +59,9 @@ class ApiTool(db.Model):
         server_onupdate=text('CURRENT_TIMESTAMP(0)')
     )
     created_at = Column(DateTime, nullable=False, server_default=text('CURRENT_TIMESTAMP(0)'))
+
+
+@property
+def provider(self) -> "ApiToolProvider":
+    """只讀屬性，返回當前工具關聯/歸屬的工具提供者訊息"""
+    return db.session.query(ApiToolProvider).get(self.provider_id)
