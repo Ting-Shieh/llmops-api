@@ -8,10 +8,11 @@
 from flask_wtf import FlaskForm
 from marshmallow import Schema, fields, pre_dump
 from wtforms import StringField
-from wtforms.validators import DataRequired, Length, URL, ValidationError
+from wtforms.validators import DataRequired, Length, URL, ValidationError, Optional
 
 from internal.model import ApiToolProvider, ApiTool
 from internal.schema import ListField
+from pkg.paginator import PaginatorReq
 
 
 class ValidateOpenAPISchemaReq(FlaskForm):
@@ -111,5 +112,45 @@ class GetApiToolResp(Schema):
                 "description": provider.description,
                 "headers": provider.headers,
             },
+            "created_at": int(data.created_at.timestamp()),
+        }
+
+
+class GetApiToolProvidersWithPageReq(PaginatorReq):
+    """獲取API工具提供者分頁列表請求"""
+    search_word = StringField(
+        "search_word",
+        validators=[
+            Optional(),
+        ]
+    )
+
+
+class GetApiToolProvidersWithPageResp(Schema):
+    """獲取API工具提供者分頁列表數據檢驗"""
+    id = fields.UUID()
+    name = fields.String()
+    icon = fields.String()
+    description = fields.String()
+    headers = fields.List(fields.Dict, default=[])
+    tools = fields.List(fields.Dict, default=[])
+    created_at = fields.Integer(default=0)
+
+    # 映射數據
+    @pre_dump
+    def process_data(self, data: ApiToolProvider, **kwargs):
+        tools = data.tools
+        return {
+            "id": data.id,
+            "name": data.name,
+            "icon": data.icon,
+            "description": data.description,
+            "headers": data.headers,
+            "tools": [{
+                "id": tool.id,
+                "name": tool.name,
+                "description": tool.description,
+                "inputs": [{k: v for k, v in parameter.items() if k != 'in'} for parameter in tool.parameters],
+            } for tool in tools],
             "created_at": int(data.created_at.timestamp()),
         }

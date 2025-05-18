@@ -7,14 +7,17 @@
 """
 import json
 from dataclasses import dataclass
+from typing import Any
 from uuid import UUID
 
 from injector import inject
+from sqlalchemy import desc
 
 from internal.core.tools.api_tools.entities import OpenAPISchema
 from internal.exception import ValidateErrorException, NotFoundException
 from internal.model import ApiToolProvider, ApiTool
-from internal.schema.api_tool_schema import CreateApiToolReq
+from internal.schema.api_tool_schema import CreateApiToolReq, GetApiToolProvidersWithPageReq
+from pkg.paginator import Paginator
 from pkg.sqlalchemy import SQLAlchemy
 
 
@@ -68,11 +71,6 @@ class ApiToolService:
                     )
                     self.db.session.add(api_tol)
 
-        # 4.
-
-        # 5.
-        pass
-
     def get_api_tool_provider(self, provider_id: UUID) -> ApiToolProvider:
         """根據provider_id獲取工具提供者的原始訊息"""
         # todo: 等待授權認證模塊完成進行切換調整
@@ -101,6 +99,52 @@ class ApiToolService:
             raise NotFoundException("該工具不存在。The tool does not exist.")
 
         return api_tool
+
+    def delete_api_tool_provider(self, provider_id: UUID):
+        """根據provider_id刪除對應自定義API工具提供者訊息"""
+        # todo: 等待授權認證模塊完成進行切換調整
+        account_id = "12326394kajhdfugoudncj83"
+
+        # 1.先查找數據，檢測provider_id對應的數據是否存在，權限是否正確
+        api_tool_provider = self.db.session.query(ApiToolProvider).get(provider_id)
+
+        # 2.檢驗數據是否為空，並判斷該數據是否屬於當前帳號
+        if api_tool_provider is None or str(api_tool_provider.account_id) != account_id:
+            raise NotFoundException("該工具提供者不存在。The tool provider does not exist.")
+
+        # 4.開啟數據庫的自動提交
+        with self.db.auto_commit():
+            # 5.先來刪除提供者對應的工具訊息
+            self.db.session.query(ApiTool).filter(
+                ApiTool.provider_id == provider_id,
+                ApiTool.account_id == account_id
+            ).delete()
+
+            # 6.刪除服務提供者
+            self.db.session.delete(api_tool_provider)
+
+    def get_api_tool_providers_with_page(
+            self,
+            req: GetApiToolProvidersWithPageReq
+    ) -> tuple[list[Any], Paginator]:
+        """獲取自定義API工具服務提供者分頁列表數據"""
+        # todo: 等待授權認證模塊完成進行切換調整
+        account_id = "12326394kajhdfugoudncj83"
+
+        # 1.構建分頁數據
+        paginator = Paginator(db=self.db, req=req)
+
+        # 2.構建篩選器
+        filters = [ApiToolProvider.account_id == account_id]
+        if req.search_word.data:
+            filters.append(ApiToolProvider.name.ilike(f"%{req.search_word.data}%"))
+
+        # 3.執行分頁並獲取數據
+        api_tool_providers = paginator.paginate(
+            self.db.session.query(ApiToolProvider).filter(*filters).order_by(desc("created_at"))
+        )
+
+        return api_tool_providers, paginator
 
     @classmethod
     def parse_openapi_schema(cls, openapi_schema_str: str) -> OpenAPISchema:

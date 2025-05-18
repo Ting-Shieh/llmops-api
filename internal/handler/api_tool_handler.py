@@ -8,11 +8,13 @@
 from dataclasses import dataclass
 from uuid import UUID
 
+from flask import request
 from injector import inject
 
 from internal.schema.api_tool_schema import ValidateOpenAPISchemaReq, CreateApiToolReq, GetApiToolProviderResp, \
-    GetApiToolResp
+    GetApiToolResp, GetApiToolProvidersWithPageReq
 from internal.service import ApiToolService
+from pkg.paginator import PageModel
 from pkg.response import validate_error_json, success_message, success_json
 
 
@@ -49,6 +51,25 @@ class ApiToolHandler:
         resp = GetApiToolResp()
 
         return success_json(resp.dump(api_tool))
+
+    def delete_api_tool_provider(self, provider_id: UUID):
+        """根據provider_id刪除對應自定義API工具提供者訊息"""
+        api_tool_provider = self.api_tool_service.delete_api_tool_provider(provider_id)
+
+        return success_message("刪除自定義API插件成功。Delete the custom API plugin successfully.")
+
+    def get_api_tool_providers_with_page(self):
+        """獲取API工具提供者列表訊息，該接口支持分頁"""
+        req = GetApiToolProvidersWithPageReq(request.args)
+
+        if not req.validate():
+            return validate_error_json(req.errors)
+
+        api_tool_providers, paginator = self.api_tool_service.get_api_tool_providers_with_page(req)
+
+        resp = GetApiToolProvidersWithPageReq(many=True)
+
+        return success_json(PageModel(list=resp.dump(api_tool_providers), paginator=paginator))
 
     def validate_openapi_schema(self):
         """校驗傳遞的openapi_schema字符串是否正確"""
