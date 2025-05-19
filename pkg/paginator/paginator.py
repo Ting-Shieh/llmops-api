@@ -54,7 +54,7 @@ class Paginator:
     def paginate(self, select) -> list[Any]:
         """對傳入的查詢進行分頁"""
         # 1.調用db.paginate進行數據分頁
-        p = self.db.paginate(select, page=self.current_page, per_page=self.page_size, error_out=True)
+        p = self.db.paginate(select, page=self.current_page, per_page=self.page_size, error_out=False)
 
         # 2.計畫總頁數+總條數
         self.total_record = p.total

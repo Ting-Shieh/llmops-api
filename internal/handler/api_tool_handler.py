@@ -12,7 +12,7 @@ from flask import request
 from injector import inject
 
 from internal.schema.api_tool_schema import ValidateOpenAPISchemaReq, CreateApiToolReq, GetApiToolProviderResp, \
-    GetApiToolResp, GetApiToolProvidersWithPageReq
+    GetApiToolResp, GetApiToolProvidersWithPageReq, GetApiToolProvidersWithPageResp
 from internal.service import ApiToolService
 from pkg.paginator import PageModel
 from pkg.response import validate_error_json, success_message, success_json
@@ -67,7 +67,7 @@ class ApiToolHandler:
 
         api_tool_providers, paginator = self.api_tool_service.get_api_tool_providers_with_page(req)
 
-        resp = GetApiToolProvidersWithPageReq(many=True)
+        resp = GetApiToolProvidersWithPageResp(many=True)
 
         return success_json(PageModel(list=resp.dump(api_tool_providers), paginator=paginator))
 

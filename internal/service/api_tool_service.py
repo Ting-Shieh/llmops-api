@@ -129,7 +129,7 @@ class ApiToolService:
     ) -> tuple[list[Any], Paginator]:
         """獲取自定義API工具服務提供者分頁列表數據"""
         # todo: 等待授權認證模塊完成進行切換調整
-        account_id = "12326394kajhdfugoudncj83"
+        account_id = "f2ac22f0-e5c6-be86-87c1-9e55c419aa2d"
 
         # 1.構建分頁數據
         paginator = Paginator(db=self.db, req=req)
