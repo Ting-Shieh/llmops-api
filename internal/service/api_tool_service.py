@@ -16,7 +16,7 @@ from sqlalchemy import desc
 from internal.core.tools.api_tools.entities import OpenAPISchema
 from internal.exception import ValidateErrorException, NotFoundException
 from internal.model import ApiToolProvider, ApiTool
-from internal.schema.api_tool_schema import CreateApiToolReq, GetApiToolProvidersWithPageReq
+from internal.schema.api_tool_schema import CreateApiToolReq, GetApiToolProvidersWithPageReq, UpdateApiToolProviderReq
 from pkg.paginator import Paginator
 from pkg.sqlalchemy import SQLAlchemy
 
@@ -71,10 +71,63 @@ class ApiToolService:
                     )
                     self.db.session.add(api_tol)
 
+    def update_api_tool_provider(self, provider_id, req: UpdateApiToolProviderReq):
+        """根據provider_id+req，更新對應的API工具提供者訊息"""
+        # todo: 等待授權認證模塊完成進行切換調整
+        account_id = "f2ac22f0-e5c6-be86-87c1-9e55c419aa2d"
+
+        # 1.根據provider_id查找API工具提供者訊息並校驗
+        api_tool_provider = self.db.session.query(ApiToolProvider).get(provider_id)
+
+        # 2.檢驗數據是否為空，並判斷該數據是否屬於當前帳號
+        if api_tool_provider is None or str(api_tool_provider.account_id) != account_id:
+            raise NotFoundException("該工具提供者不存在。The tool provider does not exist.")
+
+        # 3.校驗openapi_schema數據
+        openapi_schema = self.parse_openapi_schema(req.openapi_schema.data)
+
+        # 4.檢測當前帳號是否已經創建了同名的工具工具提供者，如果是則拋出錯誤
+        check_api_tool_provider = self.db.session.query(ApiToolProvider).filter(
+            ApiToolProvider.account_id == account_id,
+            ApiToolProvider.name == req.name.data,
+            ApiToolProvider.id != api_tool_provider.id
+        ).one_or_none()
+        if check_api_tool_provider:
+            raise ValidateErrorException(
+                f"該工具提供者名稱 {req.name.data}已存在。The tool provider's name {req.name.data} exist.")
+
+        # 5.開啟數據庫自動提交
+        with self.db.auto_commit():
+            # 6.先刪除該工具提供者下的所有工具
+            self.db.session.query(ApiTool).filter(
+                ApiTool.provider_id == api_tool_provider.id,
+                ApiTool.account_id == account_id,
+            ).delete()
+
+            # 修改工具提供者訊息
+            api_tool_provider.name = req.name.data
+            api_tool_provider.icon = req.icon.data
+            api_tool_provider.headers = req.headers.data
+            api_tool_provider.openapi_schema = req.openapi_schema.data
+
+            # 7.新增工具訊息從而完成覆蓋更新
+            for path, path_item in openapi_schema.paths.items():
+                for method, method_item in path_item.items():
+                    api_tol = ApiTool(
+                        account_id=account_id,
+                        provider_id=api_tool_provider.id,
+                        name=method_item.get("operationId"),
+                        description=method_item.get("description"),
+                        url=f"{openapi_schema.server}{path}",
+                        method=method,
+                        parameters=method_item.get("parameters", []),
+                    )
+                    self.db.session.add(api_tol)
+
     def get_api_tool_provider(self, provider_id: UUID) -> ApiToolProvider:
         """根據provider_id獲取工具提供者的原始訊息"""
         # todo: 等待授權認證模塊完成進行切換調整
-        account_id = "12326394kajhdfugoudncj83"
+        account_id = "f2ac22f0-e5c6-be86-87c1-9e55c419aa2d"
 
         # 1.查詢數據庫獲取對應數據
         api_tool_provider = self.db.session.query(ApiToolProvider).get(provider_id)
@@ -88,7 +141,7 @@ class ApiToolService:
     def get_api_tool(self, provider_id: UUID, tool_name: str) -> ApiTool:
         """根據provider_id+tool_name獲取工具的詳情訊息"""
         # todo: 等待授權認證模塊完成進行切換調整
-        account_id = "12326394kajhdfugoudncj83"
+        account_id = "f2ac22f0-e5c6-be86-87c1-9e55c419aa2d"
 
         api_tool = self.db.session.query(ApiTool).filter_by(
             provider_id=provider_id,
@@ -103,7 +156,7 @@ class ApiToolService:
     def delete_api_tool_provider(self, provider_id: UUID):
         """根據provider_id刪除對應自定義API工具提供者訊息"""
         # todo: 等待授權認證模塊完成進行切換調整
-        account_id = "12326394kajhdfugoudncj83"
+        account_id = "f2ac22f0-e5c6-be86-87c1-9e55c419aa2d"
 
         # 1.先查找數據，檢測provider_id對應的數據是否存在，權限是否正確
         api_tool_provider = self.db.session.query(ApiToolProvider).get(provider_id)
