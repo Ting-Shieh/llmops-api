@@ -20,6 +20,7 @@ from internal.schema.api_tool_schema import CreateApiToolReq, GetApiToolProvider
 from pkg.paginator import Paginator
 from pkg.sqlalchemy import SQLAlchemy
 from .base_service import BaseService
+from ..core.tools.api_tools.providers import ApiProviderManager
 
 
 @inject
@@ -27,6 +28,7 @@ from .base_service import BaseService
 class ApiToolService(BaseService):
     """自定義API插件服務"""
     db: SQLAlchemy
+    api_provider_manager: ApiProviderManager
 
     def create_api_tool_provider(self, req: CreateApiToolReq) -> None:
         """根據傳遞的請求創建自定義API工具"""
@@ -211,3 +213,26 @@ class ApiToolService(BaseService):
             raise ValidateErrorException("傳遞數據必須符合OpenAPI規範的JSON字符串")
 
         return OpenAPISchema(**data)
+
+    def api_tool_invoke(self):
+        # todo: 等待授權認證模塊完成進行切換調整
+        provider_id = "f2ac22f0-e5c6-be86-87c1-9e55c419aa2d"
+        tool_name = "YoudaoSuggests"
+
+        api_tool = self.db.session.query(ApiTool).filter(
+            ApiTool.provider_id == provider_id,
+            ApiTool.name == tool_name
+        ).one_or_none()
+        api_tool_provider = api_tool.provider
+
+        from internal.core.tools.api_tools.entities import ToolEntity
+        tool = self.api_provider_manager.get_tool(ToolEntity(
+            id=provider_id,
+            name=tool_name,
+            url=api_tool.url,
+            method=api_tool.meyhod,
+            description=api_tool.description,
+            headers=api_tool_provider.headers,
+            parameters=api_tool.parameters
+        ))
+        return tool.invoke({"q": "love", "doctype": "json"})

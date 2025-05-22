@@ -22,7 +22,7 @@ from langchain_openai import ChatOpenAI
 
 from internal.core.tools.buildin_tools.providers import BuildinProviderManager
 from internal.schema.app_schema import CompletionReq
-from internal.service import AppService, VectorDatabaseService
+from internal.service import AppService, VectorDatabaseService, ApiToolService
 from pkg.response import success_json, validate_error_json, success_message
 
 
@@ -33,6 +33,7 @@ class AppHandler:
     app_service: AppService
     vector_database_service: VectorDatabaseService
     buildin_provider_manager: BuildinProviderManager
+    api_tool_service: ApiToolService
 
     def create_app(self):
         """調用服務創建新的App紀錄"""
@@ -124,7 +125,9 @@ class AppHandler:
         # print(google_serper_entity)
 
         # 獲取所有服務提供商
-        providers = self.buildin_provider_manager.get_provider＿entities()
+        # providers = self.buildin_provider_manager.get_provider＿entities()
+        #
+        # return success_json({"providers": [provider.dict() for provider in providers]})
+        return self.api_tool_service.api_tool_invoke()
 
-        return success_json({"providers": [provider.dict() for provider in providers]})
         # return {"ping": "pong"}

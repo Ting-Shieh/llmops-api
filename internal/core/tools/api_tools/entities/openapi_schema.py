@@ -30,6 +30,14 @@ class ParameterType(str, Enum):
     BOOL: str = "bool"
 
 
+ParameterTypeMap = {
+    ParameterType.STR: "str",
+    ParameterType.INT: "int",
+    ParameterType.FLOAT: "float",
+    ParameterType.BOOL: "bool",
+}
+
+
 class OpenAPISchema(BaseModel):
     """OpenAPI規範的JSON"""
     server: str = Field(
