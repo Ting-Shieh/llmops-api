@@ -7,9 +7,11 @@
 """
 from .api_tool import ApiToolProvider, ApiTool
 from .app import App
+from .upload_file import UploadFile
 
 __all__ = [
     "App",
     "ApiToolProvider",
-    "ApiTool"
+    "ApiTool",
+    "UploadFile"
 ]

@@ -7,8 +7,7 @@
 """
 from enum import Enum
 
-from pydantic import BaseModel, Field
-from pydantic import field_validator
+from pydantic import BaseModel, Field, field_validator
 
 from internal.exception import ValidateErrorException
 
@@ -84,11 +83,12 @@ class OpenAPISchema(BaseModel):
         for path, path_item in paths.items():
             for method in methods:
                 # 3.檢測是否存在特定的方法並提取訊息
-                interfaces.append({
-                    "path": path,
-                    "method": method,
-                    "operation": path_item[method]
-                })
+                if method in path_item:
+                    interfaces.append({
+                        "path": path,
+                        "method": method,
+                        "operation": path_item[method]
+                    })
         # 4.遍歷提取到的所有接口並校驗訊息，涵蓋operationId唯一標誌，parameters參數
         operation_ids = []
         for interface in interfaces:
@@ -119,14 +119,14 @@ class OpenAPISchema(BaseModel):
                         or parameter.get("in") not in ParameterIn.__members__.values()
                 ):
                     raise ValidateErrorException(
-                        f"parameter.in參數必須為{'/'.join([item.value for item in ParameterIn])}不能為空且為字符串"
+                        f"parameter.in參數必須為{'/'.join([item.value for item in ParameterIn])}"
                     )
                 if (
                         not isinstance(parameter.get("type"), str)
                         or parameter.get("type") not in ParameterType.__members__.values()
                 ):
                     raise ValidateErrorException(
-                        f"parameter.type參數必須為{'/'.join([item.value for item in ParameterType])}不能為空且為字符串"
+                        f"parameter.type參數必須為{'/'.join([item.value for item in ParameterType])}"
                     )
 
             # 9.組裝數據並更新

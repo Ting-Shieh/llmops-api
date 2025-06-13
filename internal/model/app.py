@@ -3,7 +3,7 @@
 """
 @Time   : 2025/1/14 下午9:49
 @Author : zsting29@gmail.com
-@File   : app.py
+@File   : main.py
 """
 
 from sqlalchemy import Column, UUID, String, DateTime, Text, PrimaryKeyConstraint, Index, text

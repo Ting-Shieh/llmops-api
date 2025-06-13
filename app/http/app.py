@@ -3,15 +3,16 @@
 """
 @Time   : 2024/12/21 下午3:59
 @Author : zsting29@gmail.com
-@File   : app.py
+@File   : main.py
 """
 import dotenv
 from flask_migrate import Migrate
 
+# from .module import injector
+from app.http.module import injector
 from config import Config
 from internal.router import Router
 from internal.server import Http
-from module import injector
 from pkg.sqlalchemy import SQLAlchemy
 
 # from .module import ExtensionModule
@@ -30,5 +31,5 @@ app = Http(
     router=injector.get(Router)
 )
 
-if __name__ == "__main__":
-    app.run(debug=True, port=5001)
+# if __name__ == "__main__":
+#     app.run(debug=True, port=5001)

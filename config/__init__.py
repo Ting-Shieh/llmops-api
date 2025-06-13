@@ -6,5 +6,9 @@
 @File   : __init__.py.py
 """
 from .config import Config
+from .gcs_client import GCSClient
 
-__all__ = ["Config"]
+__all__ = [
+    "Config",
+    "GCSClient"
+]

@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from flask import Flask, Blueprint
 from injector import inject
 
-from internal.handler import AppHandler, BulidinToolHandler, ApiToolHandler
+from internal.handler import AppHandler, BulidinToolHandler, ApiToolHandler, UploadFileHandler
 
 
 @inject
@@ -21,6 +21,7 @@ class Router:
     app_handler: AppHandler
     buildin_tool_handler: BulidinToolHandler
     api_tool_handler: ApiToolHandler
+    upload_file_handler: UploadFileHandler
 
     # # 使用 @dataclass
     # def __init__(self, app_handler: AppHandler):
@@ -86,6 +87,18 @@ class Router:
             "/api-tools/<uuid:provider_id>/delete",
             methods=["POST"],
             view_func=self.api_tool_handler.delete_api_tool_provider,
+        )
+
+        # 上傳文件或圖片
+        bp.add_url_rule(
+            "/upload-files/file",
+            methods=["POST"],
+            view_func=self.upload_file_handler.upload_file,
+        )
+        bp.add_url_rule(
+            "/upload-files/image",
+            methods=["POST"],
+            view_func=self.upload_file_handler.upload_image,
         )
 
         # 3.應用上去注冊藍圖

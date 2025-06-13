@@ -111,6 +111,7 @@ class ApiToolService(BaseService):
             name=req.name.data,
             icon=req.icon.data,
             headers=req.headers.data,
+            description=openapi_schema.description,
             openapi_schema=req.openapi_schema.data
         )
         # 7.新增工具訊息從而完成覆蓋更新
