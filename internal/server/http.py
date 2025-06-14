@@ -5,6 +5,7 @@
 @Author : zsting29@gmail.com
 @File   : http.py
 """
+import logging
 import os
 
 from flask import Flask
@@ -13,6 +14,7 @@ from flask_migrate import Migrate
 
 from config import Config
 from internal.exception import CustomException
+from internal.extension import logging_extension
 from internal.router import Router
 from pkg.response import Response, json, HttpCode
 from pkg.sqlalchemy import SQLAlchemy
@@ -42,6 +44,7 @@ class Http(Flask):
         # 初始化Flask 擴展
         db.init_app(self)
         migrate.init_app(self, db, directory='internal/migration')
+        logging_extension.init_app(self)
         # with self.app_context():
         #     _ = App()
         #     db.create_all()
@@ -61,6 +64,8 @@ class Http(Flask):
         router.register_router(self)
 
     def _register_error_handler(self, error: Exception):
+        # 日誌路異常訊息
+        logging.error("An error occurred: %s", error, exc_info=True)
         #  異常訊息是否為自定義異常，若是則可提取message & code訊息．
         if isinstance(error, CustomException):
             return json(Response(
