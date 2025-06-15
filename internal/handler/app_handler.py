@@ -23,6 +23,7 @@ from langchain_openai import ChatOpenAI
 from internal.core.tools.buildin_tools.providers import BuildinProviderManager
 from internal.schema.app_schema import CompletionReq
 from internal.service import AppService, VectorDatabaseService, ApiToolService
+from internal.task.demo_task import demo_task
 from pkg.response import success_json, validate_error_json, success_message
 
 
@@ -128,6 +129,7 @@ class AppHandler:
         # providers = self.buildin_provider_manager.get_provider＿entities()
         #
         # return success_json({"providers": [provider.dict() for provider in providers]})
+        demo_task.delay(uuid.uuid4())
         return self.api_tool_service.api_tool_invoke()
 
         # return {"ping": "pong"}
