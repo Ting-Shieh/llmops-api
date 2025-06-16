@@ -7,6 +7,7 @@
 """
 import logging
 import time
+from uuid import UUID
 
 from celery import shared_task
 from flask import current_app
