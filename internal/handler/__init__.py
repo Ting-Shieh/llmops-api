@@ -8,6 +8,7 @@
 from .api_tool_handler import ApiToolHandler
 from .app_handler import AppHandler
 from .bulidin_tool_handler import BulidinToolHandler
+from .dataset_handler import DatasetHandler
 from .upload_file_handler import UploadFileHandler
 
 __all__ = [
@@ -15,4 +16,5 @@ __all__ = [
     "BulidinToolHandler",
     "ApiToolHandler",
     "UploadFileHandler",
+    "DatasetHandler",
 ]

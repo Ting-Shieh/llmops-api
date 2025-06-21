@@ -15,11 +15,12 @@ from sqlalchemy import (
     DateTime,
     text,
     PrimaryKeyConstraint,
-    Integer, Boolean,
+    Integer, Boolean, func,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 
 from internal.extension.database_extension import db
+from internal.model import AppDatasetJoin
 
 
 class Dataset(db.Model):
@@ -33,7 +34,7 @@ class Dataset(db.Model):
     id = Column(UUID, nullable=False, server_default=text("uuid_generate_v4()"))
     account_id = Column(UUID, nullable=False)
     name = Column(String(255), nullable=False, server_default=text("''::character varying"))
-    icon = Column(String(255), nullable=False, server_default=text("''::character varying"))
+    icon = Column(Text, nullable=False, server_default=text("''::character varying"))
     description = Column(Text, nullable=False, server_default=text("''::text"))
     updated_at = Column(
         DateTime,
@@ -42,6 +43,46 @@ class Dataset(db.Model):
         onupdate=datetime.now,
     )
     created_at = Column(DateTime, nullable=False, server_default=text('CURRENT_TIMESTAMP(0)'))
+
+    @property
+    def document_count(self) -> int:
+        """只讀屬性，獲取知識庫下的文檔數"""
+        return (
+            db.session.
+            query(func.count(Document.id)).
+            filter(Document.dataset_id == self.id).
+            scalar()
+        )
+
+    @property
+    def hit_count(self) -> int:
+        """只讀屬性，獲取知識庫的命中次数"""
+        return (
+            db.session.
+            query(func.coalesce(func.sum(Segment.hit_count), 0)).
+            filter(Segment.dataset_id == self.id).
+            scalar()
+        )
+
+    @property
+    def related_app_count(self) -> int:
+        """只讀屬性，獲取知識庫關聯的應用數"""
+        return (
+            db.session.
+            query(func.count(AppDatasetJoin.id)).
+            filter(AppDatasetJoin.dataset_id == self.id).
+            scalar()
+        )
+
+    @property
+    def character_count(self) -> int:
+        """只讀屬性，獲取知識庫下的字符總數"""
+        return (
+            db.session.
+            query(func.coalesce(func.sum(Document.character_count), 0)).
+            filter(Document.dataset_id == self.id).
+            scalar()
+        )
 
 
 class Document(db.Model):

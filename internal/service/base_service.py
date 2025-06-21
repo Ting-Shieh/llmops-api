@@ -31,7 +31,7 @@ class BaseService:
     def update(self, model_instance: Any, **kwargs) -> Any:
         """根據傳遞的模型類+鍵值對訊息更新數據庫紀錄"""
         with self.db.auto_commit():
-            for field, value in kwargs:
+            for field, value in kwargs.items():
                 if hasattr(model_instance, field):
                     setattr(model_instance, field, value)
                 else:

@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from flask import Flask, Blueprint
 from injector import inject
 
-from internal.handler import AppHandler, BulidinToolHandler, ApiToolHandler, UploadFileHandler
+from internal.handler import AppHandler, BulidinToolHandler, ApiToolHandler, UploadFileHandler, DatasetHandler
 
 
 @inject
@@ -22,6 +22,7 @@ class Router:
     buildin_tool_handler: BulidinToolHandler
     api_tool_handler: ApiToolHandler
     upload_file_handler: UploadFileHandler
+    dataset_handler: DatasetHandler
 
     # # 使用 @dataclass
     # def __init__(self, app_handler: AppHandler):
@@ -99,6 +100,26 @@ class Router:
             "/upload-files/image",
             methods=["POST"],
             view_func=self.upload_file_handler.upload_image,
+        )
+
+        #  知識庫插件模塊
+        bp.add_url_rule(
+            "/datasets",
+            view_func=self.dataset_handler.get_dataset_with_page,
+        )
+        bp.add_url_rule(
+            "/datasets",
+            methods=["POST"],
+            view_func=self.dataset_handler.create_dataset,
+        )
+        bp.add_url_rule(
+            "/datasets/<uuid:dataset_id>",
+            view_func=self.dataset_handler.get_dataset,
+        )
+        bp.add_url_rule(
+            "/datasets/<uuid:dataset_id>",
+            methods=["POST"],
+            view_func=self.dataset_handler.update_dataset,
         )
 
         # 3.應用上去注冊藍圖
