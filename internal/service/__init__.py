@@ -10,6 +10,7 @@ from .app_service import AppService
 from .base_service import BaseService
 from .buildin_tool_service import BuildinToolService
 from .dataset_service import DatasetService
+from .embeddings_service import EmbeddingsService
 from .gcs_service import GcsService
 from .upload_file_service import UploadFileService
 from .vector_database_service import VectorDatabaseService
@@ -23,4 +24,5 @@ __all__ = [
     "GcsService",
     "UploadFileService",
     "DatasetService",
+    "EmbeddingsService",
 ]

@@ -121,6 +121,10 @@ class Router:
             methods=["POST"],
             view_func=self.dataset_handler.update_dataset,
         )
+        bp.add_url_rule(
+            "/datasets/embeddings",
+            view_func=self.dataset_handler.embeddings_query,
+        )
 
         # 3.應用上去注冊藍圖
         app.register_blueprint(bp)
