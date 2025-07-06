@@ -11,11 +11,14 @@ from dataclasses import dataclass
 from flask import request
 from injector import inject
 
+from internal.core.file_extractor import FileExtractor
+from internal.model import UploadFile
 from internal.schema.dataset_schema import CreateDatasetReq, GetDatasetResp, UpdateDatasetReq, GetDatasetsWithPageReq, \
     GetDatasetsWithPageResp
-from internal.service import DatasetService, EmbeddingsService
+from internal.service import DatasetService, EmbeddingsService, JiebaService
 from pkg.paginator import PageModel
 from pkg.response import validate_error_json, success_message, success_json
+from pkg.sqlalchemy import SQLAlchemy
 
 
 @inject
@@ -24,11 +27,19 @@ class DatasetHandler:
     """知識庫控制器"""
     dataset_service: DatasetService
     embeddings_service: EmbeddingsService
+    jieba_service: JiebaService
+    file_extractor: FileExtractor
+    db: SQLAlchemy
 
     def embeddings_query(self):
-        query = request.args.get("query")
-        vectors = self.embeddings_service.embeddings.embed_query(query)
-        return success_json({"vectors": vectors})
+        upload_file = self.db.session.query(UploadFile).get("772ca820-a1ce-4d99-b7f2-3443fcca2dc3")
+        content = self.file_extractor.load(upload_file, True)
+        return success_json({"content": content})
+        # query = request.args.get("query")
+        # keywords = self.jieba_service.extract_keywords(query)
+        # return success_json({"keywords": keywords})
+        # vectors = self.embeddings_service.embeddings.embed_query(query)
+        # return success_json({"vectors": vectors})
 
     def create_dataset(self):
         """創建知識庫"""

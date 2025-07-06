@@ -13,12 +13,12 @@ DEFAULT_DATASET_DESCRIPTION_FORMATTER = "當你需要回答管理《{name}》的
 
 
 class ProcessType(str, Enum):
-    """文档处理规则类型枚举"""
+    """文件處理規則類型枚舉"""
     AUTOMATIC = "automatic"
     CUSTOM = "custom"
 
 
-# 默认的处理规则
+# 預設的處理規則
 DEFAULT_PROCESS_RULE = {
     "mode": "custom",
     "rule": {
@@ -31,7 +31,7 @@ DEFAULT_PROCESS_RULE = {
                 "\n\n",
                 "\n",
                 "。|！|？",
-                "\.\s|\!\s|\?\s",  # 英文标点符号后面通常需要加空格
+                "\.\s|\!\s|\?\s",  # 英文標點符號後面通常需要加空格
                 "；|;\s",
                 "，|,\s",
                 " ",
@@ -45,7 +45,7 @@ DEFAULT_PROCESS_RULE = {
 
 
 class DocumentStatus(str, Enum):
-    """文档状态类型枚举"""
+    """文件狀態類型枚舉"""
     WAITING = "waiting"
     PARSING = "parsing"
     SPLITTING = "splitting"
@@ -55,7 +55,7 @@ class DocumentStatus(str, Enum):
 
 
 class SegmentStatus(str, Enum):
-    """片段状态类型枚举"""
+    """片段狀態類型枚舉"""
     WAITING = "waiting"
     INDEXING = "indexing"
     COMPLETED = "completed"
@@ -63,13 +63,13 @@ class SegmentStatus(str, Enum):
 
 
 class RetrievalStrategy(str, Enum):
-    """检索策略类型枚举"""
+    """檢索策略類型枚舉"""
     FULL_TEXT = "full_text"
     SEMANTIC = "semantic"
     HYBRID = "hybrid"
 
 
 class RetrievalSource(str, Enum):
-    """检索来源"""
+    """檢索來源"""
     HIT_TESTING = "hit_testing"
     APP = "app"

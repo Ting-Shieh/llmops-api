@@ -5,13 +5,13 @@
 @Author : zsting29@gmail.com
 @File   : router.py
 """
-
 from dataclasses import dataclass
 
 from flask import Flask, Blueprint
 from injector import inject
 
 from internal.handler import AppHandler, BulidinToolHandler, ApiToolHandler, UploadFileHandler, DatasetHandler
+from internal.handler.document_handler import DocumentHandler
 
 
 @inject
@@ -23,6 +23,7 @@ class Router:
     api_tool_handler: ApiToolHandler
     upload_file_handler: UploadFileHandler
     dataset_handler: DatasetHandler
+    document_handler: DocumentHandler
 
     # # 使用 @dataclass
     # def __init__(self, app_handler: AppHandler):
@@ -124,6 +125,11 @@ class Router:
         bp.add_url_rule(
             "/datasets/embeddings",
             view_func=self.dataset_handler.embeddings_query,
+        )
+        bp.add_url_rule(
+            "/datasets/<uuid:dataset_id>/documents",
+            methods=["POST"],
+            view_func=self.document_handler.create_documents,
         )
 
         # 3.應用上去注冊藍圖
