@@ -11,7 +11,7 @@ from uuid import UUID
 from injector import inject
 
 from internal.schema.document_schema import CreateDocumentsReq, CreateDocumentsResp
-from internal.service import DatasetService
+from internal.service import DocumentService
 from pkg.response import validate_error_json, success_json
 
 
@@ -19,7 +19,7 @@ from pkg.response import validate_error_json, success_json
 @dataclass
 class DocumentHandler:
     """文檔處理器"""
-    document_service: DatasetService
+    document_service: DocumentService
 
     def create_documents(self, dataset_id: UUID):
         """知識庫新增/上傳文件列表"""
@@ -36,3 +36,9 @@ class DocumentHandler:
         resp = CreateDocumentsResp()
 
         return success_json(resp.dump((documents, batch)))
+
+    def get_documents_status(self, dataset_id: UUID, batch: str):
+        """根據傳遞的知識庫id+批處理標識獲取文件的狀態"""
+        documents_status = self.document_service.get_documents_status(dataset_id, batch)
+
+        return success_json(documents_status)

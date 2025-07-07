@@ -41,6 +41,10 @@ class DatasetHandler:
         # vectors = self.embeddings_service.embeddings.embed_query(query)
         # return success_json({"vectors": vectors})
 
+    def hit(self, dataset_id: uuid.UUID):
+        """根據傳遞的知識庫id+檢索參數執行召回測試"""
+        pass
+
     def create_dataset(self):
         """創建知識庫"""
         # 1.提取請求的數據並校驗

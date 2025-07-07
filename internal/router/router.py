@@ -131,6 +131,14 @@ class Router:
             methods=["POST"],
             view_func=self.document_handler.create_documents,
         )
+        bp.add_url_rule(
+            "/datasets/<uuid:dataset_id>/documents/batch/<string:batch>",
+            view_func=self.document_handler.get_documents_status,
+        )
+        bp.add_url_rule(
+            "/datasets/<uuid:dataset_id>/hit",
+            view_func=self.dataset_handler.hit,
+        )
 
         # 3.應用上去注冊藍圖
         app.register_blueprint(bp)

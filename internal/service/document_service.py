@@ -12,12 +12,13 @@ from random import random
 from uuid import UUID
 
 from injector import inject
-from sqlalchemy import desc
+from sqlalchemy import desc, func, asc
 
-from internal.entity.dataset_entity import ProcessType
+from internal.entity.dataset_entity import ProcessType, SegmentStatus
 from internal.entity.upload_file_entity import ALLOWED_DOCUMENT_EXTENSION
-from internal.exception import ForbiddenException, FailException
-from internal.model import Document, Dataset, UploadFile, ProcessRule
+from internal.exception import ForbiddenException, FailException, NotFoundException
+from internal.lib.helper import datetime_to_timestamp
+from internal.model import Document, Dataset, UploadFile, ProcessRule, Segment
 from internal.service import BaseService
 from internal.task.document_task import build_documents
 
@@ -105,3 +106,55 @@ class DocumentService(BaseService):
             Document.dataset_id == dataset_id,
         ).order_by(desc("position")).first()
         return document.position if document else 0
+
+    def get_documents_status(self, dataset_id: UUID, batch: str) -> list[dict]:
+        """根據傳遞的知識庫id+處理批次獲取文件列表的狀態"""
+        # todo: 等待授權認證模塊完成進行切換調整
+        account_id = "f2ac22f0-e5c6-be86-87c1-9e55c419aa2d"
+        # 1.檢測知識庫權限
+        dataset = self.get(Dataset, dataset_id)
+        if dataset is None or dataset.account_id != account_id:
+            raise ForbiddenException("當前用戶無該知識庫權限或知識庫不存在")
+
+        # 2.查詢當前知識庫下該批次的文件列表
+        documents = self.db.session.query(Document).filter(
+            Document.dataset_id == dataset_id,
+            Document.batch == batch,
+        ).order_by(asc("position")).all()
+        if documents is None or len(documents) == 0:
+            raise NotFoundException("該處理批次未發現文件，請核實後重試")
+
+        # 3.循環遍歷文件列表提取文件的狀態資訊
+        documents_status = []
+        for document in documents:
+            # 4.查詢每個文件的總片段數和已構建完成的片段數
+            segment_count = self.db.session.query(func.count(Segment.id)).filter(
+                Segment.document_id == document.id,
+            ).scalar()
+            completed_segment_count = self.db.session.query(func.count(Segment.id)).filter(
+                Segment.document_id == document.id,
+                Segment.status == SegmentStatus.COMPLETED,
+            ).scalar()
+
+            upload_file = document.upload_file
+            documents_status.append({
+                "id": document.id,
+                "name": document.name,
+                "size": upload_file.size,
+                "extension": upload_file.extension,
+                "mime_type": upload_file.mime_type,
+                "position": document.position,
+                "segment_count": segment_count,
+                "completed_segment_count": completed_segment_count,
+                "error": document.error,
+                "status": document.status,
+                "processing_started_at": datetime_to_timestamp(document.processing_started_at),
+                "parsing_completed_at": datetime_to_timestamp(document.parsing_completed_at),
+                "splitting_completed_at": datetime_to_timestamp(document.splitting_completed_at),
+                "indexing_completed_at": datetime_to_timestamp(document.indexing_completed_at),
+                "completed_at": datetime_to_timestamp(document.completed_at),
+                "stopped_at": datetime_to_timestamp(document.stopped_at),
+                "created_at": datetime_to_timestamp(document.created_at),
+            })
+
+        return documents_status
