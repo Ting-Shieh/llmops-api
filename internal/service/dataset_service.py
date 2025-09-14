@@ -5,17 +5,33 @@
 @Author : zsting29@gmail.com
 @File   : dataset_service.py
 """
-import uuid
 from dataclasses import dataclass
+from uuid import UUID
 
 from injector import inject
 from sqlalchemy import desc
 
-from internal.entity.dataset_entity import DEFAULT_DATASET_DESCRIPTION_FORMATTER
-from internal.exception import ValidateErrorException, NotFoundException
-from internal.model import Dataset
-from internal.schema.dataset_schema import CreateDatasetReq, UpdateDatasetReq, GetDatasetsWithPageReq
-from internal.service import BaseService
+from internal.entity.dataset_entity import (
+    DEFAULT_DATASET_DESCRIPTION_FORMATTER
+)
+from internal.exception import (
+    ValidateErrorException,
+    NotFoundException
+)
+from internal.lib.helper import datetime_to_timestamp
+from internal.model import (
+    Dataset,
+    DatasetQuery,
+    Segment
+)
+from internal.schema.dataset_schema import (
+    CreateDatasetReq,
+    UpdateDatasetReq,
+    GetDatasetsWithPageReq,
+    HitReq
+)
+from .base_service import BaseService
+from .retrieval_service import RetrievalService
 from pkg.paginator import Paginator
 from pkg.sqlalchemy import SQLAlchemy
 
@@ -25,12 +41,13 @@ from pkg.sqlalchemy import SQLAlchemy
 class DatasetService(BaseService):
     """知識庫服務"""
     db: SQLAlchemy
+    retrieval_service: RetrievalService
 
     def create_dataset(self, req: CreateDatasetReq) -> Dataset:
         """創建知識庫"""
         # 1.檢測該帳號下是否存在同名知識庫
         # todo: 等待授權認證模塊完成進行切換調整
-        account_id = "f2ac22f0-e5c6-be86-87c1-9e55c419aa2d"
+        account_id = UUID("f2ac22f0-e5c6-be86-87c1-9e55c419aa2d")
 
         dataset = self.db.session.query(Dataset).filter_by(
             account_id=account_id,
@@ -52,7 +69,24 @@ class DatasetService(BaseService):
             description=req.description.data,
         )
 
-    def get_dataset(self, dataset_id: uuid.UUID) -> Dataset:
+    def get_dataset_queries(self, dataset_id: UUID) -> list[DatasetQuery]:
+        """根據傳遞的知識庫id獲取最近的10條查詢記錄"""
+        # todo: 等待授權認證模塊完成進行切換調整
+        account_id = UUID("f2ac22f0-e5c6-be86-87c1-9e55c419aa2d")
+
+        # 1.獲取知識庫並校驗權限
+        dataset = self.get(Dataset, dataset_id)
+        if dataset is None or dataset.account_id != account_id:
+            raise NotFoundException("該知識庫不存在")
+
+        # 2.調用知識庫查詢模型尋找最近的10條紀錄
+        dataset_queries = self.db.session.query(DatasetQuery).filter(
+            DatasetQuery.dataset_id == dataset_id,
+        ).order_by(desc("created_at")).limit(10).all()
+
+        return dataset_queries
+
+    def get_dataset(self, dataset_id: UUID) -> Dataset:
         """根據知識庫ID獲取詳情"""
         # todo: 等待授權認證模塊完成進行切換調整
         account_id = "f2ac22f0-e5c6-be86-87c1-9e55c419aa2d"
@@ -63,7 +97,7 @@ class DatasetService(BaseService):
 
         return dataset
 
-    def update_dataset(self, dataset_id: uuid.UUID, req: UpdateDatasetReq) -> Dataset:
+    def update_dataset(self, dataset_id: UUID, req: UpdateDatasetReq) -> Dataset:
         """根據知識庫ID更新知識庫詳情"""
         # todo: 等待授權認證模塊完成進行切換調整
         account_id = "f2ac22f0-e5c6-be86-87c1-9e55c419aa2d"
@@ -114,3 +148,67 @@ class DatasetService(BaseService):
         )
 
         return datasets, paginator
+
+    def hit(self, dataset_id: UUID, req: HitReq) -> list[dict]:
+        """根據傳遞的知識庫id+請求執行召回測試"""
+        # todo: 等待授權認證模塊完成進行切換調整
+        account_id = UUID("f2ac22f0-e5c6-be86-87c1-9e55c419aa2d")
+
+        # 1.知識庫並校驗權限
+        dataset = self.get(Dataset, dataset_id)
+        if dataset is None or dataset.account_id != account_id:
+            raise NotFoundException("該知識庫不存在")
+
+        # 2.調用檢索服務執行檢索
+        lc_documents = self.retrieval_service.search_in_datasets(
+            dataset_ids=[dataset_id],
+            account_id=account_id,
+            **req.data,
+        )
+        lc_document_dict = {
+            str(lc_document.metadata["segment_id"]): lc_document for lc_document in lc_documents
+        }
+
+        # 3.根據檢索到的數據查詢對應的片段資訊
+        segments = self.db.session.query(Segment).filter(
+            Segment.id.in_([str(lc_document.metadata["segment_id"]) for lc_document in lc_documents])
+        ).all()
+        segment_dict = {str(segment.id): segment for segment in segments}
+
+        # 4.排序片段數據
+        sorted_segments = [
+            segment_dict[str(lc_document.metadata["segment_id"])]
+            for lc_document in lc_documents
+            if str(lc_document.metadata["segment_id"]) in segment_dict
+        ]
+
+        # 5.組裝響應數據
+        hit_result = []
+        for segment in sorted_segments:
+            document = segment.document
+            upload_file = document.upload_file
+            hit_result.append({
+                "id": segment.id,
+                "document": {
+                    "id": document.id,
+                    "name": document.name,
+                    "extension": upload_file.extension,
+                    "mime_type": upload_file.mime_type,
+                },
+                "dataset_id": segment.dataset_id,
+                "score": lc_document_dict[str(segment.id)].metadata["score"],
+                "position": segment.position,
+                "content": segment.content,
+                "keywords": segment.keywords,
+                "character_count": segment.character_count,
+                "token_count": segment.token_count,
+                "hit_count": segment.hit_count,
+                "enabled": segment.enabled,
+                "disabled_at": datetime_to_timestamp(segment.disabled_at),
+                "status": segment.status,
+                "error": segment.error,
+                "updated_at": datetime_to_timestamp(segment.updated_at),
+                "created_at": datetime_to_timestamp(segment.created_at),
+            })
+
+        return hit_result

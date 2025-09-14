@@ -12,7 +12,7 @@ from celery import shared_task
 
 @shared_task
 def build_documents(document_ids: list[UUID]) -> None:
-    """根据传递的文档id列表，构建文档"""
+    """根據傳遞的文件id列表，構建文件"""
     from app.http.module import injector
     from internal.service.indexing_service import IndexingService
 
@@ -22,7 +22,7 @@ def build_documents(document_ids: list[UUID]) -> None:
 
 @shared_task
 def update_document_enabled(document_id: UUID) -> None:
-    """根据传递的文档id修改文档的状态"""
+    """根據傳遞的文件id修改文件的狀態"""
     from app.http.module import injector
     from internal.service.indexing_service import IndexingService
 
@@ -32,7 +32,7 @@ def update_document_enabled(document_id: UUID) -> None:
 
 @shared_task
 def delete_document(dataset_id: UUID, document_id: UUID) -> None:
-    """根据传递的文档id+知识库id清除文档记录"""
+    """根據傳遞的文件id+知識庫id清除文件記錄"""
     from app.http.module import injector
     from internal.service.indexing_service import IndexingService
 

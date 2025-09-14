@@ -5,7 +5,7 @@
 @Author : zsting29@gmail.com
 @File   : cache_entity.py
 """
-# 快取所的過期時間，單位為妙，預設為600
+# 快取所的過期時間，單位為秒，預設為600
 LOCK_EXPIRE_TIME = 600
 
 # 更新文件啟用狀態快取鎖

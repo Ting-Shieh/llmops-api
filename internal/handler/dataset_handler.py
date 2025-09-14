@@ -5,16 +5,22 @@
 @Author : zsting29@gmail.com
 @File   : dataset_handler.py
 """
-import uuid
 from dataclasses import dataclass
+from uuid import UUID
 
 from flask import request
 from injector import inject
 
 from internal.core.file_extractor import FileExtractor
 from internal.model import UploadFile
-from internal.schema.dataset_schema import CreateDatasetReq, GetDatasetResp, UpdateDatasetReq, GetDatasetsWithPageReq, \
-    GetDatasetsWithPageResp
+from internal.schema.dataset_schema import (
+    CreateDatasetReq,
+    GetDatasetResp,
+    UpdateDatasetReq,
+    GetDatasetsWithPageReq,
+    GetDatasetsWithPageResp,
+    HitReq, GetDatasetQueriesResp
+)
 from internal.service import DatasetService, EmbeddingsService, JiebaService
 from pkg.paginator import PageModel
 from pkg.response import validate_error_json, success_message, success_json
@@ -41,9 +47,23 @@ class DatasetHandler:
         # vectors = self.embeddings_service.embeddings.embed_query(query)
         # return success_json({"vectors": vectors})
 
-    def hit(self, dataset_id: uuid.UUID):
+    def hit(self, dataset_id: UUID):
         """根據傳遞的知識庫id+檢索參數執行召回測試"""
-        pass
+        # 1.提取請求的數據並校驗
+        req = HitReq()
+        if not req.validate():
+            return validate_error_json(req.errors)
+
+        # 2.調用服務執行檢索策略
+        hit_result = self.dataset_service.hit(dataset_id, req)
+
+        return success_json(hit_result)
+
+    def get_dataset_queries(self, dataset_id: UUID):
+        """根據傳遞的知識庫id獲取最近的10條查詢記錄"""
+        dataset_queries = self.dataset_service.get_dataset_queries(dataset_id)
+        resp = GetDatasetQueriesResp(many=True)
+        return success_json(resp.dump(dataset_queries))
 
     def create_dataset(self):
         """創建知識庫"""
@@ -57,13 +77,13 @@ class DatasetHandler:
 
         return success_message(f"知識庫已經成功創建")
 
-    def get_dataset(self, dataset_id: uuid.UUID):
+    def get_dataset(self, dataset_id: UUID):
         """根據知識庫ID獲取詳情"""
         dataset = self.dataset_service.get_dataset(dataset_id)
         resp = GetDatasetResp()
         return success_json(resp.dump(dataset))
 
-    def update_dataset(self, dataset_id: uuid.UUID):
+    def update_dataset(self, dataset_id: UUID):
         """根據知識庫ID更新知識庫詳情"""
         # 1.提取請求的數據並校驗
         req = UpdateDatasetReq()

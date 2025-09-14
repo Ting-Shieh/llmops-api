@@ -13,13 +13,18 @@ from langchain_core.documents import Document
 from langchain_core.vectorstores import VectorStoreRetriever
 from langchain_weaviate import WeaviateVectorStore
 from weaviate.client import WeaviateClient
+from weaviate.collections import Collection
 
-from internal.service import EmbeddingsService
+from .embeddings_service import EmbeddingsService
+
+# 向量資料庫的集合名字
+COLLECTION_NAME = "Dataset"
 
 
 @inject
 class VectorDatabaseService:
     """向量數據庫服務"""
+    # weaviate: FlaskWeaviate
     client: WeaviateClient
     vector_store: WeaviateVectorStore
     embeddings_service: EmbeddingsService
@@ -48,7 +53,7 @@ class VectorDatabaseService:
         # create LangChain Vector DB
         self.vector_store = WeaviateVectorStore(
             client=self.client,
-            index_name="Dataset",
+            index_name=COLLECTION_NAME,
             text_key="text",
             embedding=self.embeddings_service.embeddings
             # 使用本地 -> 非本地 OpenAIEmbeddings(model="text-embedding-3-small")
@@ -62,3 +67,8 @@ class VectorDatabaseService:
     def combine_documents(cls, documents: list[Document]) -> str:
         """將對應的文檔列表使用換行符進行合併"""
         return "\n\n".join([document.page_content for document in documents])
+
+    @property
+    def collection(self) -> Collection:
+        # return self.weaviate.client.collections.get(COLLECTION_NAME)
+        return self.client.collections.get(COLLECTION_NAME)

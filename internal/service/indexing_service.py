@@ -14,24 +14,31 @@ from uuid import UUID
 
 from injector import inject
 from langchain_core.documents import Document as LCDocument
+from redis import Redis
 from sqlalchemy import func
+from weaviate.classes.query import Filter
 
 from internal.core.file_extractor import FileExtractor
+from internal.entity.cache_entity import LOCK_DOCUMENT_UPDATE_ENABLED
 from internal.entity.dataset_entity import DocumentStatus, SegmentStatus
+from internal.exception import NotFoundException
 from internal.lib.helper import generate_text_hash
-from internal.model import Document, Segment
+from internal.model import Document, Segment, DatasetQuery, KeywordTable
 from internal.service.base_service import BaseService
 from internal.service.embeddings_service import EmbeddingsService
 from internal.service.jieba_service import JiebaService
 from internal.service.keyword_table_service import KeywordTableService
 from internal.service.process_rule_service import ProcessRuleService
 from internal.service.vector_database_service import VectorDatabaseService
+from pkg.sqlalchemy import SQLAlchemy
 
 
 @inject
 @dataclass
 class IndexingService(BaseService):
     """勾引構建服務"""
+    db: SQLAlchemy
+    redis_client: Redis
     file_extractor: FileExtractor
     embeddings_service: EmbeddingsService
     jieba_service: JiebaService
@@ -72,6 +79,129 @@ class IndexingService(BaseService):
                     error=str(e),
                     stopped_at=datetime.now(),
                 )
+
+    def update_document_enabled(self, document_id: UUID) -> None:
+        """根據傳遞的文件id更新文件狀態，同時修改weaviate向量資料庫中的紀錄勾引構建服務"""
+        # 1.構建快取鍵
+        cache_key = LOCK_DOCUMENT_UPDATE_ENABLED.format(document_id=document_id)
+
+        # 2.根據傳遞的document_id獲取文件記錄
+        document = self.get(Document, document_id)
+        if document is None:
+            logging.exception("當前文件不存在, 文件id: %(document_id)s", {"document_id": document_id})
+            raise NotFoundException("當前文件不存在")
+
+        # 3.查詢歸屬於當前文件的所有片段的節點id
+        segments = self.db.session.query(Segment).with_entities(Segment.id, Segment.node_id, Segment.enabled).filter(
+            Segment.document_id == document_id,
+            Segment.status == SegmentStatus.COMPLETED,
+        ).all()
+        segment_ids = [id for id, _, _ in segments]
+        node_ids = [node_id for _, node_id, _ in segments]
+        try:
+            # 4.執行循環遍歷所有node_ids並更新向量數據
+            collection = self.vector_database_service.collection
+            for node_id in node_ids:
+                try:
+                    collection.data.update(
+                        uuid=node_id,
+                        properties={
+                            "document_enabled": document.enabled,
+                        }
+                    )
+                except Exception as e:
+                    with self.db.auto_commit():
+                        self.db.session.query(Segment).filter(
+                            Segment.node_id == node_id,
+                        ).update({
+                            "error": str(e),
+                            "status": SegmentStatus.ERROR,
+                            "enabled": False,
+                            "disabled_at": datetime.now(),
+                            "stopped_at": datetime.now(),
+                        })
+
+            # 5.更新關鍵字表對應的數據（enabled為false表示從關鍵字表中刪除數據，enabled為true表示在關鍵字表中新增數據）
+            if document.enabled is True:
+                # 6.從禁用改為啟用，需要新增關鍵字
+                enabled_segment_ids = [id for id, _, enabled in segments if enabled is True]
+                self.keyword_table_service.add_keyword_table_from_ids(document.dataset_id, enabled_segment_ids)
+            else:
+                # 7.從啟用改為禁用，需要剔除關鍵字
+                self.keyword_table_service.delete_keyword_table_from_ids(document.dataset_id, segment_ids)
+        except Exception as e:
+            # 5.記錄日誌並將狀態修改回原來的狀態
+            logging.exception(
+                "修改向量資料庫文件啟用狀態失敗, document_id: %(document_id)s, 錯誤資訊: %(error)s",
+                {"document_id": document_id, "error": e},
+            )
+            origin_enabled = not document.enabled
+            self.update(
+                document,
+                enabled=origin_enabled,
+                disabled_at=None if origin_enabled else datetime.now(),
+            )
+        finally:
+            # 6.清空快取鍵表示非同步操作已經執行完成，無論失敗還是成功都全部清除
+            self.redis_client.delete(cache_key)
+
+    def delete_document(self, dataset_id: UUID, document_id: UUID) -> None:
+        """根據傳遞的知識庫id+文件id刪除文件資訊"""
+        # 1.尋找該文件下的所有片段id列表
+        segment_ids = [
+            str(id) for id, in self.db.session.query(Segment).with_entities(Segment.id).filter(
+                Segment.document_id == document_id,
+            ).all()
+        ]
+
+        # 2.調用向量資料庫刪除其關聯記錄
+        collection = self.vector_database_service.collection
+        collection.data.delete_many(
+            where=Filter.by_property("document_id").equal(document_id),
+        )
+
+        # 3.刪除postgres關聯的segment記錄
+        with self.db.auto_commit():
+            self.db.session.query(Segment).filter(
+                Segment.document_id == document_id,
+            ).delete()
+
+        # 4.刪除片段id對應的關鍵字記錄
+        self.keyword_table_service.delete_keyword_table_from_ids(dataset_id, segment_ids)
+
+    def delete_dataset(self, dataset_id: UUID) -> None:
+        """根據傳遞的知識庫id執行相應的刪除操作"""
+        try:
+            with self.db.auto_commit():
+                # 1.刪除關聯的文件記錄
+                self.db.session.query(Document).filter(
+                    Document.dataset_id == dataset_id,
+                ).delete()
+
+                # 2.刪除關聯的片段記錄
+                self.db.session.query(Segment).filter(
+                    Segment.dataset_id == dataset_id,
+                ).delete()
+
+                # 3.刪除關聯的關鍵字表記錄
+                self.db.session.query(KeywordTable).filter(
+                    KeywordTable.dataset_id == dataset_id,
+                ).delete()
+
+                # 4.刪除知識庫查詢記錄
+                self.db.session.query(DatasetQuery).filter(
+                    DatasetQuery.dataset_id == dataset_id,
+                ).delete()
+
+            # 5.調用向量資料庫刪除知識庫的關聯記錄
+            self.vector_database_service.collection.data.delete_many(
+                where=Filter.by_property("dataset_id").equal(str(dataset_id))
+            )
+        except Exception as e:
+            logging.exception(
+                "非同步刪除知識庫關聯內容出錯, dataset_id: %(dataset_id)s, 錯誤資訊: %(error)s",
+                {"dataset_id": dataset_id, "error": e},
+            )
 
     def _parsing(self, document: Document) -> list[LCDocument]:
         """解析傳遞的文件為LangChain文件列表"""

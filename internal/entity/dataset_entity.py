@@ -64,12 +64,12 @@ class SegmentStatus(str, Enum):
 
 class RetrievalStrategy(str, Enum):
     """檢索策略類型枚舉"""
-    FULL_TEXT = "full_text"
-    SEMANTIC = "semantic"
-    HYBRID = "hybrid"
+    FULL_TEXT = "full_text"  # 全文檢索
+    SEMANTIC = "semantic"  # 相似性檢索
+    HYBRID = "hybrid"  # 混合檢索
 
 
 class RetrievalSource(str, Enum):
     """檢索來源"""
-    HIT_TESTING = "hit_testing"
+    HIT_TESTING = "hit_testing"  # 召回測試
     APP = "app"
