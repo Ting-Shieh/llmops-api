@@ -5,8 +5,10 @@
 @Author : zsting29@gmail.com
 @File   : __init__.py.py
 """
+from .account import Account, AccountOAuth
 from .api_tool import ApiToolProvider, ApiTool
 from .app import App, AppDatasetJoin
+from .conversation import Conversation, Message, MessageAgentThought
 from .dataset import Dataset, DatasetQuery, Document, Segment, KeywordTable, ProcessRule
 from .upload_file import UploadFile
 
@@ -22,4 +24,9 @@ __all__ = [
     "Segment",
     "KeywordTable",
     "ProcessRule",
+    "Conversation",
+    "Message",
+    "MessageAgentThought",
+    "Account",
+    "AccountOAuth",
 ]

@@ -5,6 +5,7 @@
 @Author : zsting29@gmail.com
 @File   : dataset_service.py
 """
+import logging
 from dataclasses import dataclass
 from uuid import UUID
 
@@ -16,13 +17,15 @@ from internal.entity.dataset_entity import (
 )
 from internal.exception import (
     ValidateErrorException,
-    NotFoundException
+    NotFoundException,
+    FailException
 )
 from internal.lib.helper import datetime_to_timestamp
 from internal.model import (
     Dataset,
     DatasetQuery,
-    Segment
+    Segment,
+    AppDatasetJoin
 )
 from internal.schema.dataset_schema import (
     CreateDatasetReq,
@@ -30,10 +33,11 @@ from internal.schema.dataset_schema import (
     GetDatasetsWithPageReq,
     HitReq
 )
-from .base_service import BaseService
-from .retrieval_service import RetrievalService
+from internal.task.dataset_task import delete_dataset
 from pkg.paginator import Paginator
 from pkg.sqlalchemy import SQLAlchemy
+from .base_service import BaseService
+from .retrieval_service import RetrievalService
 
 
 @inject
@@ -212,3 +216,34 @@ class DatasetService(BaseService):
             })
 
         return hit_result
+
+    def delete_dataset(self, dataset_id: UUID) -> Dataset:
+        """
+        根據傳遞的知識庫id刪除知識庫資訊，
+        涵蓋知識庫底下的所有文件、片段、關鍵字，以及向量資料庫裡儲存的數據
+        """
+
+        # todo: 等待授權認證模塊完成進行切換調整
+        account_id = UUID("f2ac22f0-e5c6-be86-87c1-9e55c419aa2d")
+
+        # 1.獲取知識庫並校驗權限
+        dataset = self.get(Dataset, dataset_id)
+        if dataset is None or dataset.account_id != account_id:
+            raise NotFoundException("該知識庫不存在")
+
+        try:
+            # 2.刪除知識庫基礎記錄以及知識庫和應用關聯的紀錄
+            self.delete(dataset)
+            with self.db.auto_commit():
+                self.db.session.query(AppDatasetJoin).filter(
+                    AppDatasetJoin.dataset_id == dataset_id,
+                ).delete()
+
+            # 3.調用非同步任務執行後續的操作
+            delete_dataset.delay(dataset_id)
+        except Exception as e:
+            logging.exception(
+                "刪除知識庫失敗, dataset_id: %(dataset_id)s, 錯誤資訊: %(error)s",
+                {"dataset_id": dataset_id, "error": e},
+            )
+            raise FailException("刪除知識庫失敗，請稍後重試")

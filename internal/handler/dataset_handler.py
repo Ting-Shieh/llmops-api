@@ -95,6 +95,11 @@ class DatasetHandler:
 
         return success_message(f"知識庫已經成功更新")
 
+    def delete_dataset(self, dataset_id: UUID):
+        """根據傳遞的知識庫id刪除知識庫"""
+        self.dataset_service.delete_dataset(dataset_id)
+        return success_message("刪除知識庫成功")
+
     def get_dataset_with_page(self):
         """獲取知識庫分頁＆搜尋列表數據"""
         # 1.提取query數據並校驗

@@ -5,26 +5,41 @@
 @Author : zsting29@gmail.com
 @File   : app_handler.py
 """
+import json
 import uuid
 from dataclasses import dataclass
 from operator import itemgetter
-from typing import Dict, Any
+from queue import Queue
+from threading import Thread
+from typing import Dict, Any, Literal, Generator
 
 from injector import inject
 from langchain.memory import ConversationBufferWindowMemory
 from langchain_community.chat_message_histories import FileChatMessageHistory
 from langchain_core.memory import BaseMemory
+from langchain_core.messages import ToolMessage
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables import RunnablePassthrough, RunnableLambda, RunnableConfig
 from langchain_core.tracers import Run
 from langchain_openai import ChatOpenAI
+from langgraph.constants import END
+from langgraph.graph import MessagesState, StateGraph
 
 from internal.core.tools.buildin_tools.providers import BuildinProviderManager
 from internal.schema.app_schema import CompletionReq
-from internal.service import AppService, VectorDatabaseService, ApiToolService
-from internal.task.demo_task import demo_task
-from pkg.response import success_json, validate_error_json, success_message
+from internal.service import (
+    AppService,
+    VectorDatabaseService,
+    ApiToolService,
+    ConversationService
+)
+from pkg.response import (
+    success_json,
+    validate_error_json,
+    success_message,
+    compact_generate_response
+)
 
 
 @inject
@@ -35,6 +50,7 @@ class AppHandler:
     vector_database_service: VectorDatabaseService
     buildin_provider_manager: BuildinProviderManager
     api_tool_service: ApiToolService
+    conversation_service: ConversationService
 
     def create_app(self):
         """調用服務創建新的App紀錄"""
@@ -72,6 +88,120 @@ class AppHandler:
             configurable_memory.save_context(run_obj.inputs, run_obj.outputs)
 
     def debug(self, app_id: uuid.UUID):
+        # 1.獲取接口的參數
+        req = CompletionReq()
+        if not req.validate():
+            return validate_error_json(req.errors)
+
+        q = Queue()
+        query = req.query.data
+
+        def graph_app() -> None:
+            """Create Graph圖程序應用並執行"""
+            # tools工具列表
+            tools = [
+                self.buildin_provider_manager.get_tool("google", "google_serper")(),
+                self.buildin_provider_manager.get_tool("google", "google_weather")(),
+                self.buildin_provider_manager.get_tool("dalle", "dalle3")()
+            ]
+
+            # 定義大語言模型/聊天機器人節點
+            def chatbot(state: MessagesState) -> MessagesState:
+                """聊天機器人"""
+                llm = ChatOpenAI(
+                    model="gpt-4o-mini",
+                    temperature=0.7
+                ).bind_tools(tools)
+
+                is_first_chunk = True
+                is_tool_call = False
+                gathered = None
+                id = str(uuid.uuid4())
+                for chunk in llm.stream(state["messages"]):
+                    if is_first_chunk and chunk.content == "" and not chunk.tool_calls:
+                        continue
+
+                    if is_first_chunk:
+                        gathered = chunk
+                        is_first_chunk = False
+                    else:
+                        gathered += chunk
+
+                    if chunk.tool_calls or is_tool_call:
+                        is_tool_call = True
+                        q.put({
+                            "id": id,
+                            "event": "agent_thought",
+                            "data": json.dumps(chunk.tool_call_chunks)
+                        })
+                    else:
+                        q.put({
+                            "id": id,
+                            "event": "agent_message",
+                            "data": chunk.content
+                        })
+                return {"messages": [gathered]}
+
+            def tool_executor(state: MessagesState) -> MessagesState:
+                tool_calls = state["messages"][-1].tool_calls
+
+                tools_by_name = {
+                    tool.name: tool for tool in tools
+                }
+
+                messages = []
+                for tool_call in tool_calls:
+                    id = str(uuid.uuid4())
+                    tool = tools_by_name[tool_call["name"]]
+                    tool_result = tool.invoke(tool_call["args"])
+                    messages.append(ToolMessage(
+                        tool_call_id=tool_call['id'],
+                        content=json.dumps(tool_result),
+                        name=tool_call["name"]
+                    ))
+
+                    q.put({
+                        "id": id,
+                        "event": "agent_action",
+                        "data": json.dumps(tool_result)
+                    })
+                return {"messages": messages}
+
+            def route(state: MessagesState) -> Literal["tool_executor", "__end__"]:
+                ai_message = state["messages"][-1]
+                if hasattr(ai_message, "tool_calls") and len(ai_message.tool_calls) > 0:
+                    return "tool_executor"
+                return END
+
+            graph_builder = StateGraph(MessagesState)
+
+            graph_builder.add_node("llm", chatbot)
+            graph_builder.add_node("tool_executor", tool_executor)
+
+            graph_builder.set_entry_point("llm")
+            graph_builder.add_conditional_edges("llm", route)
+            graph_builder.add_edge("tool_executor", "llm")
+
+            graph = graph_builder.compile()
+            result = graph.invoke({"messages": [("human", query)]})
+
+            print("Final Result:", result)
+            q.put(None)
+
+        def stream_event_response() -> Generator:
+            while True:
+                item = q.get()
+                if item is None:
+                    break
+                yield f"event: {item.get("event")}\ndata:{json.dumps(item)}\n\n"
+                q.task_done()
+
+        t = Thread(target=graph_app)
+        t.start()
+
+        return compact_generate_response(stream_event_response())
+
+    def _debug(self, app_id: uuid.UUID):
         """聊天接口"""
         # 1.獲取接口的參數
         req = CompletionReq()
@@ -117,6 +247,9 @@ class AppHandler:
         return success_json({"content": content})
 
     def ping(self):
+        conversation_name = self.conversation_service.generate_conversation_name("我喜歡作詞作曲")
+        return success_json({"conversation_name": conversation_name})
+
         # google_serper = self.buildin_provider_manager.get_tool(provider_name="google", tool_name="google_serper")()
         # print(google_serper)
         # print(google_serper.invoke("今天台積電最高股價是多少？"))
@@ -129,7 +262,7 @@ class AppHandler:
         # providers = self.buildin_provider_manager.get_provider＿entities()
         #
         # return success_json({"providers": [provider.dict() for provider in providers]})
-        demo_task.delay(uuid.uuid4())
-        return self.api_tool_service.api_tool_invoke()
+        # demo_task.delay(uuid.uuid4())
+        # return self.api_tool_service.api_tool_invoke()
 
         # return {"ping": "pong"}

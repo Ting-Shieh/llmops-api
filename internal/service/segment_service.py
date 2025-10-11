@@ -188,6 +188,7 @@ class SegmentService(BaseService):
         segments = paginator.paginate(
             self.db.session.query(Segment).filter(*filters).order_by(asc("position"))
         )
+        print(segments)
 
         return segments, paginator
 

@@ -17,7 +17,8 @@ from .response import (
     fail_message,
     not_found_message,
     unauthorized_message,
-    forbidden_message
+    forbidden_message,
+    compact_generate_response
 )
 
 __all__ = [
@@ -32,5 +33,6 @@ __all__ = [
     "fail_message",
     "not_found_message",
     "unauthorized_message",
-    "forbidden_message"
+    "forbidden_message",
+    "compact_generate_response"
 ]

@@ -7,10 +7,13 @@
 """
 import uuid
 from dataclasses import dataclass
+from typing import Generator
 
 from injector import inject
 
 from internal.model import App
+from internal.model.account import Account
+from internal.schema.app_schema import DebugChatReq
 from pkg.sqlalchemy import SQLAlchemy
 
 
@@ -48,3 +51,9 @@ class AppService:
             app = self.get_app(id)
             self.db.session.delete(app)
         return app
+
+    def debug_chat(
+            self,
+            app_id: uuid.UUID, req: DebugChatReq, account: Account
+    ) -> Generator:
+        pass

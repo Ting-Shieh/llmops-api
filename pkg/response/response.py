@@ -6,9 +6,9 @@
 @File   : response.py
 """
 from dataclasses import field, dataclass
-from typing import Any
+from typing import Any, Union, Generator
 
-from flask import jsonify
+from flask import jsonify, stream_with_context, Response as FlaskResponse
 
 from .http_code import HttpCode
 
@@ -90,3 +90,22 @@ def unauthorized_message(msg: str = ""):
 def forbidden_message(msg: str = ""):
     """無權限消息響應"""
     return message(code=HttpCode.FORBIDDEN, msg=msg)
+
+
+def compact_generate_response(response: Union[Response, Generator]) -> FlaskResponse:
+    """統一合併處理塊輸出以及流式事件輸出"""
+    # 1.檢測下是否為塊輸出(Response)
+    if isinstance(response, Response):
+        return json(response)
+    else:
+        # 2.response格式為生成器，代表本次響應需要執行流式事件輸出
+        def generate() -> Generator:
+            """構建generate函數，流式從response中獲取數據"""
+            yield from response
+
+        # 3.返回攜帶上下文的流式事件輸出
+        return FlaskResponse(
+            stream_with_context(generate()),
+            status=200,
+            mimetype="text/event-stream",
+        )

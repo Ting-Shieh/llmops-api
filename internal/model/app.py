@@ -7,7 +7,16 @@
 """
 from datetime import datetime
 
-from sqlalchemy import Column, UUID, String, DateTime, Text, PrimaryKeyConstraint, Index, text
+from sqlalchemy import (
+    Column,
+    UUID,
+    String,
+    DateTime,
+    Text,
+    PrimaryKeyConstraint,
+    Index,
+    text
+)
 
 from internal.extension.database_extension import db
 
@@ -67,7 +76,11 @@ class AppDatasetJoin(db.Model):
         # Index("app_dataset_join_app_id_dataset_id_idx", "app_id", "dataset_id"),
     )
 
-    id = Column(UUID, nullable=False, server_default=text("uuid_generate_v4()"))
+    id = Column(
+        UUID,
+        nullable=False,
+        server_default=text("uuid_generate_v4()")
+    )
     app_id = Column(UUID, nullable=False)
     dataset_id = Column(UUID, nullable=False)
     updated_at = Column(
@@ -76,4 +89,8 @@ class AppDatasetJoin(db.Model):
         server_default=text("CURRENT_TIMESTAMP(0)"),
         onupdate=datetime.now,
     )
-    created_at = Column(DateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP(0)"))
+    created_at = Column(
+        DateTime,
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP(0)")
+    )
