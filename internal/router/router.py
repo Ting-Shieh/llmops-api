@@ -16,7 +16,9 @@ from internal.handler import (
     ApiToolHandler,
     UploadFileHandler,
     DatasetHandler,
-    SegmentHandler
+    SegmentHandler,
+    OAuthHandler,
+    AccountHandler
 )
 from internal.handler.document_handler import DocumentHandler
 
@@ -32,6 +34,8 @@ class Router:
     dataset_handler: DatasetHandler
     document_handler: DocumentHandler
     segment_handler: SegmentHandler
+    oauth_handler: OAuthHandler
+    account_handler: AccountHandler
 
     # # 使用 @dataclass
     # def __init__(self, app_handler: AppHandler):
@@ -207,6 +211,48 @@ class Router:
             "/datasets/<uuid:dataset_id>/documents/<uuid:document_id>/segments/<uuid:segment_id>/delete",
             methods=["POST"],
             view_func=self.segment_handler.delete_segment,
+        )
+
+        # 6.授權認證模組
+        bp.add_url_rule(
+            "/oauth/<string:provider_name>",
+            view_func=self.oauth_handler.provider,
+        )
+        bp.add_url_rule(
+            "/oauth/authorize/<string:provider_name>",
+            methods=["POST"],
+            view_func=self.oauth_handler.authorize,
+        )
+        bp.add_url_rule(
+            "/auth/password-login",
+            methods=["POST"],
+            view_func=self.auth_handler.password_login,
+        )
+        bp.add_url_rule(
+            "/auth/logout",
+            methods=["POST"],
+            view_func=self.auth_handler.logout,
+        )
+
+        # 7.帳號設定模組
+        bp.add_url_rule(
+            "/account",
+            view_func=self.account_handler.get_current_user
+        )
+        bp.add_url_rule(
+            "/account/password",
+            methods=["POST"],
+            view_func=self.account_handler.update_password
+        )
+        bp.add_url_rule(
+            "/account/name",
+            methods=["POST"],
+            view_func=self.account_handler.update_name
+        )
+        bp.add_url_rule(
+            "/account/avatar",
+            methods=["POST"],
+            view_func=self.account_handler.update_avatar
         )
 
         # 3.應用上去注冊藍圖

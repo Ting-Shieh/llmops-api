@@ -6,6 +6,7 @@
 @File   : __init__.py.py
 """
 from .account import Account, AccountOAuth
+from .api_key import ApiKey
 from .api_tool import ApiToolProvider, ApiTool
 from .app import App, AppDatasetJoin
 from .conversation import Conversation, Message, MessageAgentThought
@@ -29,4 +30,5 @@ __all__ = [
     "MessageAgentThought",
     "Account",
     "AccountOAuth",
+    "ApiKey",
 ]

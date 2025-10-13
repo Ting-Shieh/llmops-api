@@ -5,6 +5,8 @@
 @Author : zsting29@gmail.com
 @File   : __init__.py.py
 """
+from .account_service import AccountService
+from .api_key_service import ApiKeyService
 from .api_tool_service import ApiToolService
 from .app_service import AppService
 from .base_service import BaseService
@@ -16,7 +18,9 @@ from .embeddings_service import EmbeddingsService
 from .gcs_service import GcsService
 from .indexing_service import IndexingService
 from .jieba_service import JiebaService
+from .jwt_service import JwtService
 from .keyword_table_service import KeywordTableService
+from .oauth_service import OAuthService
 from .process_rule_service import ProcessRuleService
 from .retrieval_service import RetrievalService
 from .segment_service import SegmentService
@@ -40,5 +44,9 @@ __all__ = [
     "KeywordTableService",
     "SegmentService",
     "RetrievalService",
-    "ConversationService"
+    "ConversationService",
+    "JwtService",
+    "ApiKeyService",
+    "AccountService",
+    "OAuthService"
 ]

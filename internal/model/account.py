@@ -53,7 +53,7 @@ class Account(db.Model):
     assistant_agent_conversation_id = Column(
         UUID,
         nullable=True
-    )  # 辅助智能体会话id
+    )  # 輔助智慧體會話id
     last_login_at = Column(
         DateTime,
         nullable=False,
