@@ -21,12 +21,12 @@ from internal.entity.dataset_entity import ProcessType, SegmentStatus, DocumentS
 from internal.entity.upload_file_entity import ALLOWED_DOCUMENT_EXTENSION
 from internal.exception import ForbiddenException, FailException, NotFoundException
 from internal.lib.helper import datetime_to_timestamp
-from internal.model import Document, Dataset, UploadFile, ProcessRule, Segment
+from internal.model import Document, Dataset, UploadFile, ProcessRule, Segment, Account
 from internal.schema.document_schema import GetDocumentsWithPageReq
-from .base_service import BaseService
 from internal.task.document_task import build_documents, update_document_enabled, delete_document
 from pkg.paginator import Paginator
 from pkg.sqlalchemy import SQLAlchemy
+from .base_service import BaseService
 
 
 @inject
@@ -42,21 +42,19 @@ class DocumentService(BaseService):
             upload_file_ids: list[UUID],
             process_type: str = ProcessType.AUTOMATIC,
             rule: dict = None,
+            account: Account = None,
     ) -> tuple[list[Document], str]:
         """根據傳遞的資訊創建文件列表並調用異步任務"""
-        # todo: 等待授權認證模塊完成進行切換調整
-        account_id = "f2ac22f0-e5c6-be86-87c1-9e55c419aa2d"
-
         # 1.檢測知識庫權限
         dataset = self.get(Dataset, dataset_id)
         print(dataset is None)
-        print(dataset.account_id != account_id)
-        if dataset is None or dataset.account_id != account_id:
+        print(dataset.account_id != account.id)
+        if dataset is None or dataset.account_id != account.id:
             raise ForbiddenException("當前用戶無該知識庫權限或知識庫不存在")
 
         # 2.提取文件並校驗文件權限與文件擴展
         upload_files = self.db.session.query(UploadFile).filter(
-            UploadFile.account_id == account_id,
+            UploadFile.account_id == account.id,
             UploadFile.id.in_(upload_file_ids),
         ).all()
 
@@ -71,7 +69,7 @@ class DocumentService(BaseService):
                 "account_id: %(account_id)s, "
                 "dataset_id: %(dataset_id)s, "
                 "upload_file_ids: %(upload_file_ids)s",
-                {"account_id": account_id, "dataset_id": dataset_id, "update_file_ids": repr(upload_file_ids)},
+                {"account_id": account.id, "dataset_id": dataset_id, "update_file_ids": repr(upload_file_ids)},
             )
             raise FailException("暫未解析到合法文件，請重新上傳")
 
@@ -79,7 +77,7 @@ class DocumentService(BaseService):
         batch = time.strftime("%Y%m%d%H%M%S") + str(random.randint(100000, 999999))
         process_rule = self.create(
             ProcessRule,
-            account_id=account_id,
+            account_id=account.id,
             dataset_id=dataset_id,
             mode=process_type,
             rule=rule,
@@ -94,7 +92,7 @@ class DocumentService(BaseService):
             position += 1
             document = self.create(
                 Document,
-                account_id=account_id,
+                account_id=account.id,
                 dataset_id=dataset_id,
                 upload_file_id=upload_file.id,
                 process_rule_id=process_rule.id,
@@ -110,20 +108,11 @@ class DocumentService(BaseService):
         # 7.返回文件列表與處理批次
         return documents, batch
 
-    def get_latest_document_position(self, dataset_id: UUID) -> int:
-        """根據傳遞的知識庫id獲取最新檔案位置"""
-        document = self.db.session.query(Document).filter(
-            Document.dataset_id == dataset_id,
-        ).order_by(desc("position")).first()
-        return document.position if document else 0
-
-    def get_documents_status(self, dataset_id: UUID, batch: str) -> list[dict]:
+    def get_documents_status(self, dataset_id: UUID, batch: str, account: Account) -> list[dict]:
         """根據傳遞的知識庫id+處理批次獲取文件列表的狀態"""
-        # todo: 等待授權認證模塊完成進行切換調整
-        account_id = UUID("f2ac22f0-e5c6-be86-87c1-9e55c419aa2d")
         # 1.檢測知識庫權限
         dataset = self.get(Dataset, dataset_id)
-        if dataset is None or dataset.account_id != account_id:
+        if dataset is None or dataset.account_id != account.id:
             raise ForbiddenException("當前用戶無該知識庫權限或知識庫不存在")
 
         # 2.查詢當前知識庫下該批次的文件列表
@@ -169,28 +158,22 @@ class DocumentService(BaseService):
 
         return documents_status
 
-    def get_document(self, dataset_id: UUID, document_id: UUID) -> Document:
+    def get_document(self, dataset_id: UUID, document_id: UUID, account: Account) -> Document:
         """根據傳遞的知識庫id+文件id獲取文件記錄資訊"""
-        # todo: 等待授權認證模塊完成進行切換調整
-        account_id = UUID("f2ac22f0-e5c6-be86-87c1-9e55c419aa2d")
-
         document = self.get(Document, document_id)
         if document is None:
             raise NotFoundException("文件不存在，請核實後重試")
-        if document.dataset_id != dataset_id or document.account_id != account_id:
+        if document.dataset_id != dataset_id or document.account_id != account.id:
             raise ForbiddenException("當前用戶獲取該文件，請核實後重試")
 
         return document
 
-    def update_document(self, dataset_id: UUID, document_id: UUID, **kwargs) -> Document:
+    def update_document(self, dataset_id: UUID, document_id: UUID, account: Account, **kwargs) -> Document:
         """根據傳遞的知識庫id+文件id，更新文件資訊"""
-        # todo: 等待授權認證模塊完成進行切換調整
-        account_id = UUID("f2ac22f0-e5c6-be86-87c1-9e55c419aa2d")
-
         document = self.get(Document, document_id)
         if document is None:
             raise NotFoundException("文件不存在，請核實後重試")
-        if document.dataset_id != dataset_id or document.account_id != account_id:
+        if document.dataset_id != dataset_id or document.account_id != account.id:
             raise ForbiddenException("當前用戶無權限修改該文件，請核實後重試")
 
         return self.update(document, **kwargs)
@@ -199,15 +182,12 @@ class DocumentService(BaseService):
             self,
             dataset_id: UUID,
             req: GetDocumentsWithPageReq,
+            account: Account
     ) -> tuple[list[Document], Paginator]:
         """根據傳遞的知識庫id+請求數據獲取文件分頁列表數據"""
-
-        # todo: 等待授權認證模塊完成進行切換調整
-        account_id = UUID("f2ac22f0-e5c6-be86-87c1-9e55c419aa2d")
-
         # 1.獲取知識庫並校驗權限
         dataset = self.get(Dataset, dataset_id)
-        if dataset is None or dataset.account_id != account_id:
+        if dataset is None or dataset.account_id != account.id:
             raise NotFoundException("該知識庫不存在，或無權限")
 
         # 2.構建分頁查詢器
@@ -215,7 +195,7 @@ class DocumentService(BaseService):
 
         # 3.構建篩選器
         filters = [
-            Document.account_id == account_id,
+            Document.account_id == account.id,
             Document.dataset_id == dataset_id,
         ]
         if req.search_word.data:
@@ -233,20 +213,17 @@ class DocumentService(BaseService):
             dataset_id: UUID,
             document_id: UUID,
             enabled: bool,
+            account: Account,
     ) -> Document:
         """
         根據傳遞的知識庫id+文件id，更新文件的啟用狀態，
         同時會非同步更新weaviate向量資料庫中的數據
         """
-
-        # todo: 等待授權認證模塊完成進行切換調整
-        account_id = UUID("f2ac22f0-e5c6-be86-87c1-9e55c419aa2d")
-
         # 1.獲取文件並校驗權限
         document = self.get(Document, document_id)
         if document is None:
             raise NotFoundException("該文件不存在，請核實後重試")
-        if document.dataset_id != dataset_id or document.account_id != account_id:
+        if document.dataset_id != dataset_id or document.account_id != account.id:
             raise ForbiddenException("當前用戶無權限修改該知識庫下的文件，請核實後重試")
 
         # 2.判斷文件是否處於可以修改的狀態，只有構建完成才可以修改enabled
@@ -276,17 +253,13 @@ class DocumentService(BaseService):
 
         return document
 
-    def delete_document(self, dataset_id: UUID, document_id: UUID) -> Document:
+    def delete_document(self, dataset_id: UUID, document_id: UUID, account: Account) -> Document:
         """根據傳遞的知識庫id+文件id刪除文件資訊，涵蓋：文件片段刪除、關鍵字表更新、weaviate向量資料庫記錄刪除"""
-
-        # todo: 等待授權認證模塊完成進行切換調整
-        account_id = UUID("f2ac22f0-e5c6-be86-87c1-9e55c419aa2d")
-
         # 1.獲取文件並校驗權限
         document = self.get(Document, document_id)
         if document is None:
             raise NotFoundException("該文件不存在，請核實後重試")
-        if document.dataset_id != dataset_id or document.account_id != account_id:
+        if document.dataset_id != dataset_id or document.account_id != account.id:
             raise ForbiddenException("當前用戶無權限刪除該知識庫下的文件，請核實後重試")
 
         # 2.判斷文件是否處於可刪除狀態，只有構建完成/出錯的時候才可以刪除，其他情況需要等待構建完成
@@ -300,3 +273,10 @@ class DocumentService(BaseService):
         delete_document.delay(dataset_id, document_id)
 
         return document
+
+    def get_latest_document_position(self, dataset_id: UUID) -> int:
+        """根據傳遞的知識庫id獲取最新檔案位置"""
+        document = self.db.session.query(Document).filter(
+            Document.dataset_id == dataset_id,
+        ).order_by(desc("position")).first()
+        return document.position if document else 0

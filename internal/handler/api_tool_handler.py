@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from flask import request
+from flask_login import login_required, current_user
 from injector import inject
 
 from internal.schema.api_tool_schema import ValidateOpenAPISchemaReq, CreateApiToolReq, GetApiToolProviderResp, \
@@ -24,6 +25,7 @@ class ApiToolHandler:
     api_tool_service: ApiToolService
     """自定義API插件處理器"""
 
+    @login_required
     def create_api_tool_provider(self):
         """創建自定義API工具"""
         # 1.提取請求的數據並校驗
@@ -32,40 +34,45 @@ class ApiToolHandler:
             return validate_error_json(req.errors)
 
         # 2.調用服務創建API工具
-        self.api_tool_service.create_api_tool_provider(req)
+        self.api_tool_service.create_api_tool_provider(req, current_user)
 
         return success_message("創建自定義API插件工具")
 
+    @login_required
     def update_api_tool_provider(self, provider_id: UUID):
         """更新自定義API工具提供者訊息"""
         req = UpdateApiToolProviderReq()
         if not req.validate():
             return validate_error_json(req.errors)
-        self.api_tool_service.update_api_tool_provider(provider_id, req)
+        self.api_tool_service.update_api_tool_provider(provider_id, req, current_user)
         return success_message("更新自定義API插件成功")
 
+    @login_required
     def get_api_tool_provider(self, provider_id: UUID):
         """根據provider_id獲取工具提供者的原始訊息"""
-        api_tool_provider = self.api_tool_service.get_api_tool_provider(provider_id)
+        api_tool_provider = self.api_tool_service.get_api_tool_provider(provider_id, current_user)
 
         resp = GetApiToolProviderResp()
 
         return success_json(resp.dump(api_tool_provider))
 
+    @login_required
     def get_api_tool(self, provider_id: UUID, tool_name: str):
         """根據provider_id+tool_name獲取工具的詳情訊息"""
-        api_tool = self.api_tool_service.get_api_tool(provider_id, tool_name)
+        api_tool = self.api_tool_service.get_api_tool(provider_id, tool_name, current_user)
 
         resp = GetApiToolResp()
 
         return success_json(resp.dump(api_tool))
 
+    @login_required
     def delete_api_tool_provider(self, provider_id: UUID):
         """根據provider_id刪除對應自定義API工具提供者訊息"""
-        api_tool_provider = self.api_tool_service.delete_api_tool_provider(provider_id)
+        api_tool_provider = self.api_tool_service.delete_api_tool_provider(provider_id, current_user)
 
         return success_message("刪除自定義API插件成功。Delete the custom API plugin successfully.")
 
+    @login_required
     def get_api_tool_providers_with_page(self):
         """獲取API工具提供者列表訊息，該接口支持分頁"""
         req = GetApiToolProvidersWithPageReq(request.args)
@@ -73,12 +80,13 @@ class ApiToolHandler:
         if not req.validate():
             return validate_error_json(req.errors)
 
-        api_tool_providers, paginator = self.api_tool_service.get_api_tool_providers_with_page(req)
+        api_tool_providers, paginator = self.api_tool_service.get_api_tool_providers_with_page(req, current_user)
 
         resp = GetApiToolProvidersWithPageResp(many=True)
 
         return success_json(PageModel(list=resp.dump(api_tool_providers), paginator=paginator))
 
+    @login_required
     def validate_openapi_schema(self):
         """校驗傳遞的openapi_schema字符串是否正確"""
         # 1. 提取前端的數據並校驗

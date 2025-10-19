@@ -18,7 +18,7 @@ from internal.handler import (
     DatasetHandler,
     SegmentHandler,
     OAuthHandler,
-    AccountHandler
+    AccountHandler, AuthHandler
 )
 from internal.handler.document_handler import DocumentHandler
 
@@ -36,6 +36,7 @@ class Router:
     segment_handler: SegmentHandler
     oauth_handler: OAuthHandler
     account_handler: AccountHandler
+    auth_handler: AuthHandler
 
     # # 使用 @dataclass
     # def __init__(self, app_handler: AppHandler):

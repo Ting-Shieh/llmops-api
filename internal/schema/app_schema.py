@@ -11,12 +11,106 @@ from flask_wtf import FlaskForm
 from marshmallow import fields, pre_dump, Schema
 from wtforms.fields.numeric import IntegerField
 from wtforms.fields.simple import StringField
-from wtforms.validators import DataRequired, Length, NumberRange, Optional, ValidationError
+from wtforms.validators import DataRequired, Length, NumberRange, Optional, ValidationError, URL
 
+from internal.entity.app_entity import AppStatus
 from internal.lib.helper import datetime_to_timestamp
-from internal.model import Message
+from internal.model import Message, App
 from internal.schema import ListField
 from pkg.paginator import PaginatorReq
+
+
+class CreateAppReq(FlaskForm):
+    """創建Agent應用請求結構體"""
+    name = StringField("name", validators=[
+        DataRequired("應用名稱不能為空"),
+        Length(max=40, message="應用名稱長度最大不能超過40個字元"),
+    ])
+    icon = StringField("icon", validators=[
+        DataRequired("應用圖示不能為空"),
+        URL(message="應用圖示必須是圖片URL連結"),
+    ])
+    description = StringField("description", validators=[
+        Length(max=800, message="應用描述的長度不能超過800個字元")
+    ])
+
+
+class UpdateAppReq(FlaskForm):
+    """更新Agent應用請求結構體"""
+    name = StringField("name", validators=[
+        DataRequired("應用名稱不能為空"),
+        Length(max=40, message="應用名稱長度最大不能超過40個字元"),
+    ])
+    icon = StringField("icon", validators=[
+        DataRequired("應用圖示不能為空"),
+        URL(message="應用圖示必須是圖片URL連結"),
+    ])
+    description = StringField("description", validators=[
+        Length(max=800, message="應用描述的長度不能超過800個字元")
+    ])
+
+
+class GetAppResp(Schema):
+    """獲取應用基礎資訊響應結構"""
+    id = fields.UUID(dump_default="")
+    debug_conversation_id = fields.UUID(dump_default="")
+    name = fields.String(dump_default="")
+    icon = fields.String(dump_default="")
+    description = fields.String(dump_default="")
+    status = fields.String(dump_default="")
+    draft_updated_at = fields.Integer(dump_default=0)
+    updated_at = fields.Integer(dump_default=0)
+    created_at = fields.Integer(dump_default=0)
+
+    @pre_dump
+    def process_data(self, data: App, **kwargs):
+        return {
+            "id": data.id,
+            "debug_conversation_id": data.debug_conversation_id if data.debug_conversation_id else "",
+            "name": data.name,
+            "icon": data.icon,
+            "description": data.description,
+            "status": data.status,
+            "draft_updated_at": datetime_to_timestamp(data.draft_app_config.updated_at),
+            "updated_at": datetime_to_timestamp(data.updated_at),
+            "created_at": datetime_to_timestamp(data.created_at),
+        }
+
+
+class GetAppsWithPageReq(PaginatorReq):
+    """獲取應用分頁列表數據請求"""
+    search_word = StringField("search_word", default="", validators=[Optional()])
+
+
+class GetAppsWithPageResp(Schema):
+    """獲取應用分頁列表數據響應結構"""
+    id = fields.UUID(dump_default="")
+    name = fields.String(dump_default="")
+    icon = fields.String(dump_default="")
+    description = fields.String(dump_default="")
+    preset_prompt = fields.String(dump_default="")
+    model_config = fields.Dict(dump_default={})
+    status = fields.String(dump_default="")
+    updated_at = fields.Integer(dump_default=0)
+    created_at = fields.Integer(dump_default=0)
+
+    @pre_dump
+    def process_data(self, data: App, **kwargs):
+        app_config = data.app_config if data.status == AppStatus.PUBLISHED else data.draft_app_config
+        return {
+            "id": data.id,
+            "name": data.name,
+            "icon": data.icon,
+            "description": data.description,
+            "preset_prompt": app_config.preset_prompt,
+            "model_config": {
+                "provider": app_config.model_config.get("provider", ""),
+                "model": app_config.model_config.get("model", "")
+            },
+            "status": data.status,
+            "updated_at": datetime_to_timestamp(data.updated_at),
+            "created_at": datetime_to_timestamp(data.created_at),
+        }
 
 
 class CompletionReq(FlaskForm):

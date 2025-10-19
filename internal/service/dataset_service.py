@@ -25,7 +25,7 @@ from internal.model import (
     Dataset,
     DatasetQuery,
     Segment,
-    AppDatasetJoin
+    AppDatasetJoin, Account
 )
 from internal.schema.dataset_schema import (
     CreateDatasetReq,
@@ -47,14 +47,11 @@ class DatasetService(BaseService):
     db: SQLAlchemy
     retrieval_service: RetrievalService
 
-    def create_dataset(self, req: CreateDatasetReq) -> Dataset:
+    def create_dataset(self, req: CreateDatasetReq, account: Account) -> Dataset:
         """創建知識庫"""
         # 1.檢測該帳號下是否存在同名知識庫
-        # todo: 等待授權認證模塊完成進行切換調整
-        account_id = UUID("f2ac22f0-e5c6-be86-87c1-9e55c419aa2d")
-
         dataset = self.db.session.query(Dataset).filter_by(
-            account_id=account_id,
+            account_id=account.id,
             name=req.name.data,
         ).one_or_none()
         if dataset:
@@ -67,20 +64,17 @@ class DatasetService(BaseService):
         # 3.創建知識庫紀錄並返回
         return self.create(
             Dataset,
-            account_id=account_id,
+            account_id=account.id,
             name=req.name.data,
             icon=req.icon.data,
             description=req.description.data,
         )
 
-    def get_dataset_queries(self, dataset_id: UUID) -> list[DatasetQuery]:
+    def get_dataset_queries(self, dataset_id: UUID, account: Account) -> list[DatasetQuery]:
         """根據傳遞的知識庫id獲取最近的10條查詢記錄"""
-        # todo: 等待授權認證模塊完成進行切換調整
-        account_id = UUID("f2ac22f0-e5c6-be86-87c1-9e55c419aa2d")
-
         # 1.獲取知識庫並校驗權限
         dataset = self.get(Dataset, dataset_id)
-        if dataset is None or dataset.account_id != account_id:
+        if dataset is None or dataset.account_id != account.id:
             raise NotFoundException("該知識庫不存在")
 
         # 2.調用知識庫查詢模型尋找最近的10條紀錄
@@ -90,29 +84,24 @@ class DatasetService(BaseService):
 
         return dataset_queries
 
-    def get_dataset(self, dataset_id: UUID) -> Dataset:
+    def get_dataset(self, dataset_id: UUID, account: Account) -> Dataset:
         """根據知識庫ID獲取詳情"""
-        # todo: 等待授權認證模塊完成進行切換調整
-        account_id = "f2ac22f0-e5c6-be86-87c1-9e55c419aa2d"
-
         dataset = self.get(Dataset, dataset_id)
-        if dataset is None or str(dataset.account_id) != account_id:
+        if dataset is None or dataset.account_id != account.id:
             raise NotFoundException("該知識庫不存在")
 
         return dataset
 
-    def update_dataset(self, dataset_id: UUID, req: UpdateDatasetReq) -> Dataset:
+    def update_dataset(self, dataset_id: UUID, req: UpdateDatasetReq, account: Account) -> Dataset:
         """根據知識庫ID更新知識庫詳情"""
-        # todo: 等待授權認證模塊完成進行切換調整
-        account_id = "f2ac22f0-e5c6-be86-87c1-9e55c419aa2d"
         # 1.檢測該帳號下是否存在知識庫
         dataset = self.get(Dataset, dataset_id)
-        if dataset is None or str(dataset.account_id) != account_id:
+        if dataset is None or dataset.account_id != account.id:
             raise NotFoundException("該知識庫不存在")
 
         # 2.檢測修改後的知識庫名稱是否重名
         check_dataset = self.db.session.query(Dataset).filter(
-            Dataset.account_id == account_id,
+            Dataset.account_id == account.id,
             Dataset.name == req.name.data,
             Dataset.id != dataset_id,
         ).one_or_none()
@@ -134,15 +123,13 @@ class DatasetService(BaseService):
 
         return dataset
 
-    def get_dataset_with_page(self, req: GetDatasetsWithPageReq) -> tuple[list[Dataset], Paginator]:
+    def get_dataset_with_page(self, req: GetDatasetsWithPageReq, account: Account) -> tuple[list[Dataset], Paginator]:
         """獲取知識庫分頁＆搜尋列表數據"""
-        # todo: 等待授權認證模塊完成進行切換調整
-        account_id = "f2ac22f0-e5c6-be86-87c1-9e55c419aa2d"
         # 1.構建分頁查詢器
         paginator = Paginator(db=self.db, req=req)
 
         # 2.構建篩選器
-        filters = [Dataset.account_id == account_id]
+        filters = [Dataset.account_id == account.id]
         if req.search_word.data:
             filters.append(Dataset.name.ilike(f"%{req.search_word.data}%"))
 
@@ -153,20 +140,18 @@ class DatasetService(BaseService):
 
         return datasets, paginator
 
-    def hit(self, dataset_id: UUID, req: HitReq) -> list[dict]:
+    def hit(self, dataset_id: UUID, req: HitReq, account: Account) -> list[dict]:
         """根據傳遞的知識庫id+請求執行召回測試"""
-        # todo: 等待授權認證模塊完成進行切換調整
-        account_id = UUID("f2ac22f0-e5c6-be86-87c1-9e55c419aa2d")
 
         # 1.知識庫並校驗權限
         dataset = self.get(Dataset, dataset_id)
-        if dataset is None or dataset.account_id != account_id:
+        if dataset is None or dataset.account_id != account.id:
             raise NotFoundException("該知識庫不存在")
 
         # 2.調用檢索服務執行檢索
         lc_documents = self.retrieval_service.search_in_datasets(
             dataset_ids=[dataset_id],
-            account_id=account_id,
+            account_id=account.id,
             **req.data,
         )
         lc_document_dict = {
@@ -217,18 +202,14 @@ class DatasetService(BaseService):
 
         return hit_result
 
-    def delete_dataset(self, dataset_id: UUID) -> Dataset:
+    def delete_dataset(self, dataset_id: UUID, account: Account) -> Dataset:
         """
         根據傳遞的知識庫id刪除知識庫資訊，
         涵蓋知識庫底下的所有文件、片段、關鍵字，以及向量資料庫裡儲存的數據
         """
-
-        # todo: 等待授權認證模塊完成進行切換調整
-        account_id = UUID("f2ac22f0-e5c6-be86-87c1-9e55c419aa2d")
-
         # 1.獲取知識庫並校驗權限
         dataset = self.get(Dataset, dataset_id)
-        if dataset is None or dataset.account_id != account_id:
+        if dataset is None or dataset.account_id != account.id:
             raise NotFoundException("該知識庫不存在")
 
         try:

@@ -8,6 +8,7 @@
 from datetime import datetime
 
 from flask import current_app
+from flask_login import UserMixin
 from sqlalchemy import PrimaryKeyConstraint, Column, String, text, DateTime, UUID
 
 from internal.entity.conversation_entity import InvokeFrom
@@ -15,7 +16,7 @@ from internal.extension.database_extension import db
 from .conversation import Conversation
 
 
-class Account(db.Model):
+class Account(UserMixin, db.Model):
     __tablename__ = "account"
     __table_args__ = (
         PrimaryKeyConstraint("id", name="pk_account_id"),

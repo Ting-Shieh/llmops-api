@@ -6,13 +6,14 @@
 @File   : app_handler.py
 """
 import json
-import uuid
 from dataclasses import dataclass
 from operator import itemgetter
 from queue import Queue
 from threading import Thread
 from typing import Dict, Any, Literal, Generator
+from uuid import UUID, uuid4
 
+from flask_login import login_required, current_user
 from injector import inject
 from langchain.memory import ConversationBufferWindowMemory
 from langchain_community.chat_message_histories import FileChatMessageHistory
@@ -27,7 +28,7 @@ from langgraph.constants import END
 from langgraph.graph import MessagesState, StateGraph
 
 from internal.core.tools.buildin_tools.providers import BuildinProviderManager
-from internal.schema.app_schema import CompletionReq
+from internal.schema.app_schema import CompletionReq, CreateAppReq, UpdateAppReq, GetAppResp
 from internal.service import (
     AppService,
     VectorDatabaseService,
@@ -52,22 +53,40 @@ class AppHandler:
     api_tool_service: ApiToolService
     conversation_service: ConversationService
 
+    @login_required
     def create_app(self):
         """調用服務創建新的App紀錄"""
-        app = self.app_service.create_app()
+        req = CreateAppReq()
+        if not req.validate():
+            return validate_error_json(req.errors)
+        app = self.app_service.create_app(req, current_user)
         return success_message(f"應用已經成功創建，id為{app.id}")
 
-    def get_app(self, id: uuid.UUID):
-        app = self.app_service.get_app(id)
-        return success_message(f"應用已經成功獲取，應用名稱為{app.name}")
+    @login_required
+    def get_app(self, app_id: UUID):
+        """獲取指定的應用基礎資訊"""
+        app = self.app_service.get_app(app_id, current_user)
+        resp = GetAppResp()
+        return success_json(resp.dump(app))
 
-    def update_app(self, id: uuid.UUID):
-        app = self.app_service.update_app(id)
-        return success_message(f"應用已經成功修改，修改後的應用名稱為{app.name}")
+    @login_required
+    def update_app(self, app_id: UUID):
+        """根據傳遞的資訊更新指定的應用"""
+        # 1.提取數據並校驗
+        req = UpdateAppReq()
+        if not req.validate():
+            return validate_error_json(req.errors)
 
-    def delete_app(self, id: uuid.UUID):
-        app = self.app_service.delete_app(id)
-        return success_message(f"應用已經成功刪除，id為{app.id}")
+        # 2.調用服務更新數據
+        self.app_service.update_app(app_id, current_user, **req.data)
+
+        return success_message("修改Agent智慧體應用成功")
+
+    @login_required
+    def delete_app(self, app_id: UUID):
+        """根據傳遞的資訊刪除指定的應用"""
+        self.app_service.delete_app(app_id, current_user)
+        return success_message("刪除Agent智慧體應用成功")
 
     @classmethod
     def _load_memory_variable(cls, input: Dict[str, Any], config: RunnableConfig) -> Dict[str, Any]:
@@ -87,7 +106,7 @@ class AppHandler:
         if configurable_memory is not None and isinstance(configurable_memory, BaseMemory):
             configurable_memory.save_context(run_obj.inputs, run_obj.outputs)
 
-    def debug(self, app_id: uuid.UUID):
+    def debug(self, app_id: UUID):
         # 1.獲取接口的參數
         req = CompletionReq()
         if not req.validate():
@@ -116,7 +135,7 @@ class AppHandler:
                 is_first_chunk = True
                 is_tool_call = False
                 gathered = None
-                id = str(uuid.uuid4())
+                id = str(uuid4())
                 for chunk in llm.stream(state["messages"]):
                     if is_first_chunk and chunk.content == "" and not chunk.tool_calls:
                         continue
@@ -151,7 +170,7 @@ class AppHandler:
 
                 messages = []
                 for tool_call in tool_calls:
-                    id = str(uuid.uuid4())
+                    id = str(uuid4())
                     tool = tools_by_name[tool_call["name"]]
                     tool_result = tool.invoke(tool_call["args"])
                     messages.append(ToolMessage(
@@ -201,7 +220,7 @@ class AppHandler:
 
         return compact_generate_response(stream_event_response())
 
-    def _debug(self, app_id: uuid.UUID):
+    def _debug(self, app_id: UUID):
         """聊天接口"""
         # 1.獲取接口的參數
         req = CompletionReq()

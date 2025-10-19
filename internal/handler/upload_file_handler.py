@@ -7,6 +7,7 @@
 """
 from dataclasses import dataclass
 
+from flask_login import login_required, current_user
 from injector import inject
 
 from internal.schema.upload_file_schema import UploadFileReq, UploadFileResp, UploadImageReq
@@ -20,6 +21,7 @@ class UploadFileHandler:
     """上傳文件處理器"""
     gcs_service: GcsService
 
+    @login_required
     def upload_file(self):
         """上傳文件"""
         # 1.構建請求並校驗
@@ -27,12 +29,13 @@ class UploadFileHandler:
         if not req.validate():
             return validate_error_json(req.errors)
         # 2.調用服務上傳文件並獲取紀錄
-        upload_file = self.gcs_service.upload_file(req.file.data)
+        upload_file = self.gcs_service.upload_file(req.file.data, False, current_user)
 
         # 3.構建響應並返回
         resp = UploadFileResp()
         return success_json(resp.dump(upload_file))
 
+    @login_required
     def upload_image(self):
         """上傳圖片"""
         # 1.構建請求並校驗
@@ -41,7 +44,7 @@ class UploadFileHandler:
             return validate_error_json(req.errors)
 
         # 2.調用服務上傳文件並獲取紀錄
-        upload_file = self.gcs_service.upload_file(req.file.data, True)
+        upload_file = self.gcs_service.upload_file(req.file.datau, True, current_user)
 
         # 3.獲取圖片實際URL地址
         image_url = self.gcs_service.get_file_url(upload_file.key, signed=True, expiration_minutes=60)

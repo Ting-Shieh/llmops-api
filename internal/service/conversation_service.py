@@ -23,7 +23,7 @@ from internal.entity.conversation_entity import (
     SuggestedQuestions, )
 from internal.exception import NotFoundException
 from internal.model.conversation import Conversation
-from internal.service import BaseService
+from .base_service import BaseService
 from pkg.sqlalchemy import SQLAlchemy
 
 

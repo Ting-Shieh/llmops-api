@@ -17,7 +17,7 @@ from werkzeug.datastructures import FileStorage
 from config.gcs_client import gcs_client
 from internal.entity.upload_file_entity import ALLOWED_IMAGE_EXTENSION, ALLOWED_DOCUMENT_EXTENSION
 from internal.exception import FailException
-from internal.model import UploadFile
+from internal.model import UploadFile, Account
 from internal.service.upload_file_service import UploadFileService
 
 
@@ -27,11 +27,8 @@ class GcsService:
     """GCS對象存儲服務"""
     upload_file_service: UploadFileService
 
-    def upload_file(self, file: FileStorage, only_image: bool = False) -> UploadFile:
+    def upload_file(self, file: FileStorage, only_image: bool, account: Account) -> UploadFile:
         """上傳文件到GCS對象存儲服務，並返回詳細資料"""
-        # todo: 等待授權認證模塊完成進行切換調整
-        account_id = "f2ac22f0-e5c6-be86-87c1-9e55c419aa2d"
-
         # . 1.提取文件拓展名，並檢測是否可以上傳
         filename = file.filename
         extension = filename.rsplit('.', 1)[-1] if '.' in filename else ""
@@ -59,7 +56,7 @@ class GcsService:
 
         # 6. 建立 UploadFile record
         return self.upload_file_service.create_upload_file(
-            account_id=account_id,
+            account_id=account.id,
             name=filename,
             key=upload_filename,
             size=len(file_content),

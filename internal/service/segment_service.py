@@ -23,7 +23,7 @@ from internal.exception import (
     FailException
 )
 from internal.lib.helper import generate_text_hash
-from internal.model import Segment, Document
+from internal.model import Segment, Document, Account
 from internal.schema.segment_schema import (
     CreateSegmentReq,
     GetSegmentsWithPageReq, UpdateSegmentReq
@@ -53,12 +53,9 @@ class SegmentService(BaseService):
             dataset_id: UUID,
             document_id: UUID,
             req: CreateSegmentReq,
+            account: Account,
     ) -> Segment:
         """根據傳遞的資訊新增文件片段資訊"""
-
-        # todo: 等待授權認證模塊完成進行切換調整
-        account_id = UUID("f2ac22f0-e5c6-be86-87c1-9e55c419aa2d")
-
         # 1.校驗上傳內容的token長度總數，不能超過1000
         token_count = self.embeddings_service.calculate_token_count(req.content.data)
         if token_count > 1000:
@@ -68,7 +65,7 @@ class SegmentService(BaseService):
         document = self.get(Document, document_id)
         if (
                 document is None
-                or document.account_id != account_id
+                or document.account_id != account.id
                 or document.dataset_id != dataset_id
         ):
             raise NotFoundException("該知識庫文件不存在，或無權限新增，請核實後重試")
@@ -93,7 +90,7 @@ class SegmentService(BaseService):
             position += 1
             segment = self.create(
                 Segment,
-                account_id=account_id,
+                account_id=account.id,
                 dataset_id=dataset_id,
                 document_id=document_id,
                 node_id=uuid4(),
@@ -165,15 +162,13 @@ class SegmentService(BaseService):
             dataset_id: UUID,
             document_id: UUID,
             req: GetSegmentsWithPageReq,
+            account: Account
     ) -> tuple[list[Segment], Paginator]:
         """根據傳遞的資訊獲取片段列表分頁數據"""
 
-        # todo: 等待授權認證模塊完成進行切換調整
-        account_id = UUID("f2ac22f0-e5c6-be86-87c1-9e55c419aa2d")
-
         # 1.獲取文件並校驗權限
         document = self.get(Document, document_id)
-        if document is None or document.dataset_id != dataset_id or document.account_id != account_id:
+        if document is None or document.dataset_id != dataset_id or document.account_id != account.id:
             raise NotFoundException("該知識庫文件不存在，或無權限查看，請核實後重試")
 
         # 2.構建分頁查詢器
@@ -188,7 +183,6 @@ class SegmentService(BaseService):
         segments = paginator.paginate(
             self.db.session.query(Segment).filter(*filters).order_by(asc("position"))
         )
-        print(segments)
 
         return segments, paginator
 
@@ -196,17 +190,15 @@ class SegmentService(BaseService):
             self,
             dataset_id: UUID,
             document_id: UUID,
-            segment_id: UUID
+            segment_id: UUID,
+            account: Account
     ) -> Segment:
         """根據傳遞的資訊獲取片段詳情資訊"""
-        # todo: 等待授權認證模塊完成進行切換調整
-        account_id = UUID("f2ac22f0-e5c6-be86-87c1-9e55c419aa2d")
-
         # 1.獲取片段資訊並校驗權限
         segment = self.get(Segment, segment_id)
         if (
                 segment is None
-                or segment.account_id != account_id
+                or segment.account_id != account.id
                 or segment.dataset_id != dataset_id
                 or segment.document_id != document_id
         ):
@@ -220,17 +212,15 @@ class SegmentService(BaseService):
             document_id: UUID,
             segment_id: UUID,
             enabled: bool,
+            account: Account
     ) -> Segment:
         """根據傳遞的資訊更新文件片段的啟用狀態資訊"""
-
-        # todo: 等待授權認證模塊完成進行切換調整
-        account_id = UUID("f2ac22f0-e5c6-be86-87c1-9e55c419aa2d")
 
         # 1.獲取片段資訊並校驗權限
         segment = self.get(Segment, segment_id)
         if (
                 segment is None
-                or segment.account_id != account_id
+                or segment.account_id != account.id
                 or segment.dataset_id != dataset_id
                 or segment.document_id != document_id
         ):
@@ -291,18 +281,15 @@ class SegmentService(BaseService):
             self,
             dataset_id: UUID,
             document_id: UUID,
-            segment_id: UUID
+            segment_id: UUID,
+            account: Account
     ) -> Segment:
         """根據傳遞的資訊刪除指定的文件片段資訊，該服務是同步方法"""
-
-        # todo: 等待授權認證模塊完成進行切換調整
-        account_id = UUID("f2ac22f0-e5c6-be86-87c1-9e55c419aa2d")
-
         # 1.獲取片段資訊並校驗權限
         segment = self.get(Segment, segment_id)
         if (
                 segment is None
-                or segment.account_id != account_id
+                or segment.account_id != account.id
                 or segment.dataset_id != dataset_id
                 or segment.document_id != document_id
         ):
@@ -346,18 +333,15 @@ class SegmentService(BaseService):
             dataset_id: UUID,
             document_id: UUID,
             segment_id: UUID,
-            req: UpdateSegmentReq
+            req: UpdateSegmentReq,
+            account: Account
     ) -> Segment:
         """根據傳遞的資訊更新指定的文件片段資訊"""
-
-        # todo: 等待授權認證模塊完成進行切換調整
-        account_id = UUID("f2ac22f0-e5c6-be86-87c1-9e55c419aa2d")
-
         # 1.獲取片段資訊並校驗權限
         segment = self.get(Segment, segment_id)
         if (
                 segment is None
-                or segment.account_id != account_id
+                or segment.account_id != account.id
                 or segment.dataset_id != dataset_id
                 or segment.document_id != document_id
         ):

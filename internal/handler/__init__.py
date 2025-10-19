@@ -8,6 +8,7 @@
 from .account_handler import AccountHandler
 from .api_tool_handler import ApiToolHandler
 from .app_handler import AppHandler
+from .auth_handler import AuthHandler
 from .bulidin_tool_handler import BulidinToolHandler
 from .dataset_handler import DatasetHandler
 from .oauth_handler import OAuthHandler
@@ -22,5 +23,6 @@ __all__ = [
     "DatasetHandler",
     "SegmentHandler",
     "OAuthHandler",
-    "AccountHandler"
+    "AccountHandler",
+    "AuthHandler"
 ]
