@@ -9,18 +9,23 @@
 from dataclasses import dataclass
 from uuid import UUID
 
+from flask import Flask
 from injector import inject
 from langchain.retrievers import EnsembleRetriever
 from langchain_core.documents import Document as LCDocument
+from langchain_core.pydantic_v1 import BaseModel, Field
+from langchain_core.tools import BaseTool, tool
 from sqlalchemy import update
 
 from internal.entity.dataset_entity import RetrievalStrategy, RetrievalSource
 from internal.exception import NotFoundException
 from internal.model import Segment, Dataset, DatasetQuery
-from .base_service import BaseService
-from .vector_database_service import VectorDatabaseService
 from pkg.sqlalchemy import SQLAlchemy
+from .base_service import BaseService
 from .jieba_service import JiebaService
+from .vector_database_service import VectorDatabaseService
+from ..core.agent.entities.agent_entity import DATASET_RETRIEVAL_TOOL_NAME
+from ..lib.helper import combine_documents
 
 
 @inject
@@ -105,3 +110,42 @@ class RetrievalService(BaseService):
             self.db.session.execute(stmt)
 
         return lc_documents
+
+    def create_langchain_tool_from_search(
+            self,
+            flask_app: Flask,
+            dataset_ids: list[UUID],
+            account_id: UUID,
+            retrieval_strategy: str = RetrievalStrategy.SEMANTIC,
+            k: int = 4,
+            score: float = 0,
+            retrival_source: str = RetrievalSource.HIT_TESTING,
+    ) -> BaseTool:
+        """根據傳遞的參數構建一個LangChain知識庫搜索工具"""
+
+        class DatasetRetrievalInput(BaseModel):
+            """知識庫檢索工具輸入結構"""
+            query: str = Field(description="知識庫搜索query語句，類型為字串")
+
+        @tool(DATASET_RETRIEVAL_TOOL_NAME, args_schema=DatasetRetrievalInput)
+        def dataset_retrieval(query: str) -> str:
+            """如果需要搜索擴展的知識庫內容，當你覺得用戶的提問超過你的知識範圍時，可以嘗試調用該工具，輸入為搜索query語句，返回數據為檢索內容字串"""
+            # 1.調用search_in_datasets檢索得到LangChain文件列表
+            with flask_app.app_context():
+                documents = self.search_in_datasets(
+                    dataset_ids=dataset_ids,
+                    query=query,
+                    account_id=account_id,
+                    retrieval_strategy=retrieval_strategy,
+                    k=k,
+                    score=score,
+                    retrival_source=retrival_source,
+                )
+
+            # 2.將LangChain文件列錶轉換成字串後返回
+            if len(documents) == 0:
+                return "知識庫內沒有檢索到對應內容"
+
+            return combine_documents(documents)
+
+        return dataset_retrieval

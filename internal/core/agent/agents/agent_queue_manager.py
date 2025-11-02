@@ -128,7 +128,9 @@ class AgentQueueManager:
         if not q:
             # 3.添加快取鍵標識
             user_prefix = "account" if self.invoke_from in [
-                InvokeFrom.WEB_APP, InvokeFrom.DEBUGGER, InvokeFrom.ASSISTANT_AGENT,
+                InvokeFrom.WEB_APP,
+                InvokeFrom.DEBUGGER,
+                InvokeFrom.ASSISTANT_AGENT,
             ] else "end-user"
 
             # 4.設置任務對應的快取鍵，代表這次任務已經開始了

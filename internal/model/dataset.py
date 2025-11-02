@@ -20,8 +20,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB
 
 from internal.extension.database_extension import db
-from internal.model import AppDatasetJoin
-from internal.model.upload_file import UploadFile
+from .upload_file import UploadFile
 
 
 class Dataset(db.Model):
@@ -68,6 +67,7 @@ class Dataset(db.Model):
     @property
     def related_app_count(self) -> int:
         """只讀屬性，獲取知識庫關聯的應用數"""
+        from .app import AppDatasetJoin  # 在這裡導入
         return (
             db.session.
             query(func.count(AppDatasetJoin.id)).

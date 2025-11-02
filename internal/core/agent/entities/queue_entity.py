@@ -60,7 +60,7 @@ class AgentThought(BaseModel):
 
 
 class AgentResult(BaseModel):
-    """智慧體推理觀察最終結果"""
+    """智慧體推理觀察最終結果(開放API模塊)"""
     query: str = ""  # 原始用戶提問
     image_urls: list[str] = Field(default_factory=list)  # 用戶的圖片輸入列表
 

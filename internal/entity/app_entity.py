@@ -37,33 +37,36 @@ DEFAULT_APP_CONFIG = {
         "parameters": {
             "temperature": 0.5,
             "top_p": 0.85,
-            "frequency_penalty": 0.2,
-            "presence_penalty": 0.2,
-            "max_tokens": 8192,
+            "frequency_penalty": 0.2,  # 頻率懲罰
+            "presence_penalty": 0.2,  # 存在懲罰
+            "max_tokens": 8192,  # 大語言模型可出的最大數
         },
     },
-    "dialog_round": 3,
-    "preset_prompt": "",
-    "tools": [],
-    "workflows": [],
-    "datasets": [],
+    "dialog_round": 3,  # 協帶參考上下文輪數
+    "preset_prompt": "",  # 預設prompt => 默認沒有設置任何的人設以回覆邏輯
+    "tools": [],  # 工具列表
+    "workflows": [],  # 工作流列表
+    "datasets": [],  # 知識庫列表
+    # 檢索配置
     "retrieval_config": {
-        "retrieval_strategy": "semantic",
-        "k": 10,
-        "score": 0.5,
+        "retrieval_strategy": "semantic",  # 檢索策略默認,使用相似性搜索
+        "k": 10,  #
+        "score": 0.5,  # 得分
     },
+    # 長期記憶
     "long_term_memory": {
         "enable": False,
     },
-    "opening_statement": "",
-    "opening_questions": [],
-    "speech_to_text": {
+    "opening_statement": "",  # 對話開場白
+    "opening_questions": [],  # 對話開場白建議問題
+    # 語音配置
+    "speech_to_text": {  # 語音轉文本
         "enable": False,
     },
-    "text_to_speech": {
+    "text_to_speech": {  # 文本轉語音
         "enable": False,
-        "voice": "echo",
-        "auto_play": False,
+        "voice": "echo",  #
+        "auto_play": False,  #
     },
     "suggested_after_answer": {
         "enable": True,
@@ -71,10 +74,12 @@ DEFAULT_APP_CONFIG = {
     "review_config": {
         "enable": False,
         "keywords": [],
+        # 輸入配置
         "inputs_config": {
             "enable": False,
             "preset_response": "",
         },
+        # 輸出配置
         "outputs_config": {
             "enable": False,
         },

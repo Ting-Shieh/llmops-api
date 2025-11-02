@@ -6,6 +6,7 @@
 @File   : app_schema.py
 """
 from urllib.parse import urlparse
+from uuid import UUID
 
 from flask_wtf import FlaskForm
 from marshmallow import fields, pre_dump, Schema
@@ -15,7 +16,7 @@ from wtforms.validators import DataRequired, Length, NumberRange, Optional, Vali
 
 from internal.entity.app_entity import AppStatus
 from internal.lib.helper import datetime_to_timestamp
-from internal.model import Message, App
+from internal.model import Message, App, AppConfigVersion
 from internal.schema import ListField
 from pkg.paginator import PaginatorReq
 
@@ -50,6 +51,11 @@ class UpdateAppReq(FlaskForm):
     ])
 
 
+class GetAppsWithPageReq(PaginatorReq):
+    """獲取應用分頁列表數據請求"""
+    search_word = StringField("search_word", default="", validators=[Optional()])
+
+
 class GetAppResp(Schema):
     """獲取應用基礎資訊響應結構"""
     id = fields.UUID(dump_default="")
@@ -75,11 +81,6 @@ class GetAppResp(Schema):
             "updated_at": datetime_to_timestamp(data.updated_at),
             "created_at": datetime_to_timestamp(data.created_at),
         }
-
-
-class GetAppsWithPageReq(PaginatorReq):
-    """獲取應用分頁列表數據請求"""
-    search_word = StringField("search_word", default="", validators=[Optional()])
 
 
 class GetAppsWithPageResp(Schema):
@@ -113,49 +114,79 @@ class GetAppsWithPageResp(Schema):
         }
 
 
-class CompletionReq(FlaskForm):
-    """基礎聊天接口請求驗證"""
-    # required, max length=2000
-    query = StringField("query", validators=[
-        DataRequired(message="用戶提問為必填"),
-        Length(max=2000, message="用戶的提問最大長度為2000"),
+class GetPublishHistoriesWithPageReq(PaginatorReq):
+    """獲取應用發布歷史配置分頁列表請求"""
+    ...
+
+
+class GetPublishHistoriesWithPageResp(Schema):
+    """獲取應用發布歷史配置列表分頁數據"""
+    id = fields.UUID(dump_default="")
+    version = fields.Integer(dump_default=0)
+    created_at = fields.Integer(dump_default=0)
+
+    @pre_dump
+    def process_data(self, data: AppConfigVersion, **kwargs):
+        return {
+            "id": data.id,
+            "version": data.version,
+            "created_at": datetime_to_timestamp(data.created_at),
+        }
+
+
+class FallbackHistoryToDraftReq(FlaskForm):
+    """回退歷史版本到草稿請求結構體"""
+    app_config_version_id = StringField("app_config_version_id", validators=[
+        DataRequired("回退配置版本id不能為空")
     ])
+
+    def validate_app_config_version_id(self, field: StringField) -> None:
+        """校驗回退配置版本id"""
+        try:
+            UUID(field.data)
+        except Exception as e:
+            raise ValidationError("回退配置版本id必須為UUID")
+
+
+class UpdateDebugConversationSummaryReq(FlaskForm):
+    """更新應用除錯會話長期記憶請求體"""
+    summary = StringField("summary", default="")
 
 
 class DebugChatReq(FlaskForm):
-    """应用调试会话请求结构体"""
+    """應用除錯會話請求結構體"""
     image_urls = ListField("image_urls", default=[])
     query = StringField("query", validators=[
-        DataRequired("用户提问query不能为空"),
+        DataRequired("用戶提問query不能為空"),
     ])
 
     def validate_image_urls(self, field: ListField) -> None:
-        """校验传递的图片URL链接列表"""
-        # 1.校验数据类型如果为None则设置默认值空列表
+        """校驗傳遞的圖片URL連結列表"""
+        # 1.校驗數據類型如果為None則設置預設值空列表
         if not isinstance(field.data, list):
             return []
 
-        # 2.校验数据的长度，最多不能超过5条URL记录
+        # 2.校驗數據的長度，最多不能超過5條URL記錄
         if len(field.data) > 5:
-            raise ValidationError("上传的图片数量不能超过5，请核实后重试")
+            raise ValidationError("上傳的圖片數量不能超過5，請核實後重試")
 
-        # 3.循环校验image_url是否为URL
+        # 3.循環校驗image_url是否為URL
         for image_url in field.data:
             result = urlparse(image_url)
             if not all([result.scheme, result.netloc]):
-                raise ValidationError("上传的图片URL地址格式错误，请核实后重试")
+                raise ValidationError("上傳的圖片URL地址格式錯誤，請核實後重試")
 
 
 class GetDebugConversationMessagesWithPageReq(PaginatorReq):
-    """获取调试会话消息列表分页请求结构体"""
+    """獲取除錯會話消息列表分頁請求結構體"""
     created_at = IntegerField("created_at", default=0, validators=[
         Optional(),
-        NumberRange(min=0, message="created_at游标最小值为0")
+        NumberRange(min=0, message="created_at游標最小值為0")
     ])
 
 
 class GetDebugConversationMessagesWithPageResp(Schema):
-    """获取调试会话消息列表分页响应结构体"""
+    """獲取除錯會話消息列表分頁響應結構體"""
     id = fields.UUID(dump_default="")
     conversation_id = fields.UUID(dump_default="")
     query = fields.String(dump_default="")

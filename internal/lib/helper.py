@@ -6,29 +6,27 @@
 @File   : helper.py
 """
 import importlib
+import random
 import string
 from datetime import datetime
 from enum import Enum
 from hashlib import sha3_256
-from random import random
 from typing import Any
 from uuid import UUID
 
-from markdown_it.common.html_re import attr_value
-from pydantic.v1 import BaseModel
-
-from internal.model import Document
+from langchain_core.documents import Document
+from langchain_core.pydantic_v1 import BaseModel
 
 
-class ToolWrapper:
-    """工具封裝類，使工具具有屬性並保持函數功能"""
-
-    def __init__(self, func: Any, name: str):
-        self.func = func
-        self.name = name
-
-    def __call__(self, *args, **kwargs):
-        return self.func(*args, **kwargs)
+# class ToolWrapper:
+#     """工具封裝類，使工具具有屬性並保持函數功能"""
+#
+#     def __init__(self, func: Any, name: str):
+#         self.func = func
+#         self.name = name
+#
+#     def __call__(self, *args, **kwargs):
+#         return self.func(*args, **kwargs)
 
 
 def dynamic_import(module_name: str, symbol_name: str) -> Any:
@@ -43,7 +41,7 @@ def dynamic_import(module_name: str, symbol_name: str) -> Any:
     return getattr(module, symbol_name)
 
 
-def add_attribute(attr_name: str, att_value: Any):
+def add_attribute(attr_name: str, attr_value: Any):
     """
     裝飾器函數，為特定函數添加相應的屬性
     :param attr_name: 屬性名
@@ -75,52 +73,52 @@ def datetime_to_timestamp(dt: datetime) -> int:
 
 
 def combine_documents(documents: list[Document]) -> str:
-    """将对应的文档列表使用换行符进行合并"""
+    """將對應的文件列表使用換行符進行合併"""
     return "\n\n".join([document.page_content for document in documents])
 
 
 def remove_fields(data_dict: dict, fields: list[str]) -> None:
-    """根据传递的字段名移除字典中指定的字段"""
+    """根據傳遞的欄位名移除字典中指定的欄位"""
     for field in fields:
         data_dict.pop(field, None)
 
 
 def convert_model_to_dict(obj: Any, *args, **kwargs):
-    """辅助函数，将Pydantic V1版本中的UUID/Enum等数据转换成可序列化存储的数据。"""
-    # 1.如果是Pydantic的BaseModel类型，递归处理其字段
+    """輔助函數，將Pydantic V1版本中的UUID/Enum等數據轉換成可序列化儲存的數據。"""
+    # 1.如果是Pydantic的BaseModel類型，遞迴處理其欄位
     if isinstance(obj, BaseModel):
         obj_dict = obj.dict(*args, **kwargs)
-        # 2.递归处理嵌套字段
+        # 2.遞迴處理嵌套欄位
         for key, value in obj_dict.items():
             obj_dict[key] = convert_model_to_dict(value, *args, **kwargs)
         return obj_dict
 
-    # 3.如果是 UUID 类型，转换为字符串
+    # 3.如果是 UUID 類型，轉換為字串
     elif isinstance(obj, UUID):
         return str(obj)
 
-    # 4.如果是 Enum 类型，转换为其值
+    # 4.如果是 Enum 類型，轉換為其值
     elif isinstance(obj, Enum):
         return obj.value
 
-    # 5.如果是列表类型，递归处理列表中的每个元素
+    # 5.如果是列表類型，遞迴處理列表中的每個元素
     elif isinstance(obj, list):
         return [convert_model_to_dict(item, *args, **kwargs) for item in obj]
 
-    # 6.如果是字典类型，递归处理字典中的每个字段
+    # 6.如果是字典類型，遞迴處理字典中的每個欄位
     elif isinstance(obj, dict):
         return {key: convert_model_to_dict(value, *args, **kwargs) for key, value in obj.items()}
 
-    # 7.对其他类型的字段，保持原样
+    # 7.對其他類型的欄位，保持原樣
     return obj
 
 
 def get_value_type(value: Any) -> Any:
-    """根据传递的值获取变量的类型，并将str和bool转换成string和boolean"""
-    # 1.计算变量的类型并转换成字符串
+    """根據傳遞的值獲取變數的類型，並將str和bool轉換成string和boolean"""
+    # 1.計算變數的類型並轉換成字串
     value_type = type(value).__name__
 
-    # 2.判断是否为str或者是bool
+    # 2.判斷是否為str或者是bool
     if value_type == "str":
         return "string"
     elif value_type == "bool":
@@ -130,11 +128,11 @@ def get_value_type(value: Any) -> Any:
 
 
 def generate_random_string(length: int = 16) -> str:
-    """根据传递的位数，生成随机字符串"""
-    # 1.定义字符集，包含大小写字母和数字
+    """根據傳遞的位數，生成隨機字串"""
+    # 1.定義字元集，包含大小寫字母和數字
     chars = string.ascii_letters + string.digits
 
-    # 2.使用random.choices生成指定长度的随机字符串
+    # 2.使用random.choices生成指定長度的隨機字串
     random_str = ''.join(random.choices(chars, k=length))
 
     return random_str

@@ -54,7 +54,7 @@ class BaseAgent(Serializable, Runnable):
         raise NotImplementedError("_build_agent()未實現")
 
     def invoke(self, input: AgentState, config: Optional[RunnableConfig] = None) -> AgentResult:
-        """塊內容響應，一次性生成完整內容後返回"""
+        """塊內容響應，一次性生成完整內容後返回(開放API接口)"""
         # 1.調用stream方法獲取流式事件輸出數據
         content = input["messages"][0].content
         query = ""
@@ -124,7 +124,7 @@ class BaseAgent(Serializable, Runnable):
 
         # 2.構建對應的任務id及數據初始化
         input["task_id"] = input.get("task_id", uuid.uuid4())
-        input["history"] = input.get("history", [])
+        input["history"] = input.get("history", [])  # 沒有短期記憶
         input["iteration_count"] = input.get("iteration_count", 0)
 
         # 3.創建子執行緒並執行

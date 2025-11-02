@@ -20,6 +20,7 @@ from .indexing_service import IndexingService
 from .jieba_service import JiebaService
 from .jwt_service import JwtService
 from .keyword_table_service import KeywordTableService
+from .language_model_service import LanguageModelService
 from .oauth_service import OAuthService
 from .process_rule_service import ProcessRuleService
 from .retrieval_service import RetrievalService
@@ -48,5 +49,6 @@ __all__ = [
     "JwtService",
     "ApiKeyService",
     "AccountService",
-    "OAuthService"
+    "OAuthService",
+    "LanguageModelService",
 ]

@@ -9,12 +9,12 @@ import os.path
 from typing import Optional, Type, Any, Union
 
 import yaml
-from pydantic.v1 import BaseModel, Field, root_validator
+from langchain_core.pydantic_v1 import BaseModel, Field, root_validator
 
-from internal.core.language_model.entities.default_model_parameter_template import DEFAULT_MODEL_PARAMETER_TEMPLATE
-from internal.core.language_model.entities.model_entity import ModelEntity, ModelType, BaseLanguageModel
 from internal.exception import NotFoundException, FailException
 from internal.lib.helper import dynamic_import
+from .default_model_parameter_template import DEFAULT_MODEL_PARAMETER_TEMPLATE
+from .model_entity import ModelEntity, ModelType, BaseLanguageModel
 
 
 class ProviderEntity(BaseModel):
@@ -43,10 +43,17 @@ class Provider(BaseModel):
 
         # 2.動態導入服務提供商的模型類
         for model_type in provider_entity.supported_model_types:
+            print("provider_entity:", provider_entity)
+            print("supported_model_types:", provider_entity.supported_model_types)
+            # 獲取枚舉的值（字串）
+            model_type_value = model_type.value
+            print("model_type_value:", model_type_value)
             # 3.將類型的第一個字元轉換成大寫，其他不變，並構建類映射
-            symbol_name = model_type[0].upper() + model_type[1:]
+            symbol_name = model_type_value[0].upper() + model_type_value[1:]
+            print("symbol_name:", symbol_name)
+            print("model_type:", model_type)
             provider["model_class_map"][model_type] = dynamic_import(
-                f"internal.core.language_model.providers.{provider_entity.name}.{model_type}",
+                f"internal.core.language_model.providers.{provider_entity.name}.{model_type_value}",
                 symbol_name
             )
 

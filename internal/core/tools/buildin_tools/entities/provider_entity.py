@@ -11,7 +11,7 @@ from typing import Any
 import yaml
 from pydantic import BaseModel, Field
 
-from internal.lib.helper import dynamic_import, ToolWrapper
+from internal.lib.helper import dynamic_import
 from .tool_entity import ToolEntity
 
 
@@ -81,14 +81,14 @@ class Provider(BaseModel):
             self.tool_entity_map[tool_name] = ToolEntity(**tool_yaml_data)
 
             # 6.動態導入對應的工具填充到tool_func_map中
-            # self.tool_func_map[tool_name] = dynamic_import(
-            #     f"internal.core.tools.buildin_tools.providers.{self.name}",
-            #     tool_name
-            # )
-            self.tool_func_map[tool_name] = ToolWrapper(
-                dynamic_import(
-                    f"internal.core.tools.buildin_tools.providers.{self.name}",
-                    tool_name
-                ),
-                name=tool_name
+            self.tool_func_map[tool_name] = dynamic_import(
+                f"internal.core.tools.buildin_tools.providers.{self.name}",
+                tool_name
             )
+            # self.tool_func_map[tool_name] = ToolWrapper(
+            #     dynamic_import(
+            #         f"internal.core.tools.buildin_tools.providers.{self.name}",
+            #         tool_name
+            #     ),
+            #     name=tool_name
+            # )
