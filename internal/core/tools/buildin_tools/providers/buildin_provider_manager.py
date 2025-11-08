@@ -10,7 +10,7 @@ from typing import Any
 
 import yaml
 from injector import inject, singleton
-from pydantic import BaseModel, Field
+from langchain_core.pydantic_v1 import BaseModel, Field
 
 from internal.core.tools.buildin_tools.entities import ProviderEntity, Provider
 

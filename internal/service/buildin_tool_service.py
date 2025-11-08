@@ -36,7 +36,7 @@ class BuildinToolService:
         for provider in providers:
             provider_entity = provider.provider_entity
             buildin_tool = {
-                **provider_entity.model_dump(exclude=["icon"]),
+                **provider_entity.dict(exclude={"icon"}),
                 "tools": []
             }
             # 3.遍歷提取提供商的所有工具實體
@@ -46,7 +46,7 @@ class BuildinToolService:
 
                 # 5.構建工具實體訊息
                 tool_dict = {
-                    **tool_entity.model_dump(),
+                    **tool_entity.dict(),
                     "inputs": self.get_tool_inputs(tool)
                 }
                 buildin_tool["tools"].append(tool_dict)
@@ -70,8 +70,8 @@ class BuildinToolService:
         provider_entity = provider.provider_entity
         tool = provider.get_tool(tool_name)
         buildin_tool = {
-            "provider": {**provider_entity.model_dump(exclude=["icon", "created_at"])},
-            **tool_entity.model_dump(),
+            "provider": {**provider_entity.dict(exclude={"icon", "created_at"})},
+            **tool_entity.dict(),
             "created_at": provider_entity.created_at,
             "inputs": self.get_tool_inputs(tool)
         }
@@ -132,7 +132,8 @@ class BuildinToolService:
         inputs = []
         # 檢測工具是否有args_schema這個屬性，並且是BaseModel的子類
         if hasattr(tool, "args_schema") and issubclass(tool.args_schema, BaseModel):
-            for field_name, model_field in tool.args_schema.model_fields.items():
+            # 使用 Pydantic v1 的 __fields__ 屬性
+            for field_name, model_field in tool.args_schema.__fields__.items():
                 inputs.append({
                     "name": field_name,
                     "description": model_field.field_info.description or "",

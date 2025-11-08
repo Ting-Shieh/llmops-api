@@ -13,7 +13,7 @@ from injector import inject
 
 from internal.core.language_model import LanguageModelManager
 from internal.core.language_model.entities.model_entity import BaseLanguageModel
-from internal.service import BaseService
+from internal.service.base_service import BaseService
 from pkg.sqlalchemy import SQLAlchemy
 
 

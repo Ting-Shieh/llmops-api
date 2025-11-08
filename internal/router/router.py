@@ -18,7 +18,9 @@ from internal.handler import (
     DatasetHandler,
     SegmentHandler,
     OAuthHandler,
-    AccountHandler, AuthHandler
+    AccountHandler,
+    AuthHandler,
+    AIHandler
 )
 from internal.handler.document_handler import DocumentHandler
 
@@ -37,6 +39,7 @@ class Router:
     oauth_handler: OAuthHandler
     account_handler: AccountHandler
     auth_handler: AuthHandler
+    ai_handler: AIHandler
 
     # # 使用 @dataclass
     # def __init__(self, app_handler: AppHandler):
@@ -81,6 +84,10 @@ class Router:
         )
         bp.add_url_rule(
             "/apps/<uuid:app_id>/summary",
+            view_func=self.app_handler.get_debug_conversation_summary,
+        )
+        bp.add_url_rule(
+            "/apps/<uuid:app_id>/summary",
             methods=["POST"],
             view_func=self.app_handler.update_debug_conversation_summary,
         )
@@ -113,14 +120,14 @@ class Router:
             view_func=self.app_handler.regenerate_web_app_token,
         )
 
-        # 內置插件廣場模塊
+        # 3.內置插件廣場模塊
         bp.add_url_rule("/buildin-tools", view_func=self.buildin_tool_handler.get_buildin_tools)
         bp.add_url_rule(
             "/buildin-tools/<string:provider_name>/tools/<string:tool_name>",
             view_func=self.buildin_tool_handler.get_provider_tool
         )
         bp.add_url_rule(
-            "/buildin-tools/<string:provider_name>/icon",
+            "/builtin-tools/<string:provider_name>/icon",
             view_func=self.buildin_tool_handler.get_provider_icon
         )
         bp.add_url_rule(
@@ -162,7 +169,7 @@ class Router:
             view_func=self.api_tool_handler.delete_api_tool_provider,
         )
 
-        # 上傳文件或圖片
+        # 4.上傳文件或圖片
         bp.add_url_rule(
             "/upload-files/file",
             methods=["POST"],
@@ -174,7 +181,7 @@ class Router:
             view_func=self.upload_file_handler.upload_image,
         )
 
-        #  知識庫插件模塊
+        #  5.知識庫插件模塊
         bp.add_url_rule(
             "/datasets",
             view_func=self.dataset_handler.get_dataset_with_page,
@@ -314,7 +321,19 @@ class Router:
             view_func=self.account_handler.update_avatar
         )
 
-        # 3.應用上去注冊藍圖
+        # 8.AI輔助模組
+        bp.add_url_rule(
+            "/ai/optimize-prompt",
+            methods=["POST"],
+            view_func=self.ai_handler.optimize_prompt
+        )
+        bp.add_url_rule(
+            "/ai/suggested-questions",
+            methods=["POST"],
+            view_func=self.ai_handler.generate_suggested_questions,
+        )
+
+        # 應用上去注冊藍圖
         app.register_blueprint(bp)
 
         # print(app.url_map)

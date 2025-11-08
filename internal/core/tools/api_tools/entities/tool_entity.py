@@ -5,7 +5,7 @@
 @Author : zsting29@gmail.com
 @File   : tool_entity.py
 """
-from pydantic import BaseModel, Field
+from langchain_core.pydantic_v1 import BaseModel, Field
 
 
 class ToolEntity(BaseModel):

@@ -44,8 +44,14 @@ class UploadFileHandler:
             return validate_error_json(req.errors)
 
         # 2.調用服務上傳文件並獲取紀錄
-        upload_file = self.gcs_service.upload_file(req.file.datau, True, current_user)
+        upload_file = self.gcs_service.upload_file(req.file.data, True, current_user)
 
-        # 3.獲取圖片實際URL地址
-        image_url = self.gcs_service.get_file_url(upload_file.key, signed=True, expiration_minutes=60)
-        return success_json({"image_url": image_url})
+        # 3.統一返回格式，使用 Model 的 url 屬性（7 天有效期）
+        return success_json({
+            "id": str(upload_file.id),
+            "name": upload_file.name,
+            "url": upload_file.url,  # 統一使用 Model 的 url 屬性
+            "size": upload_file.size,
+            "extension": upload_file.extension,
+            "mime_type": upload_file.mime_type,
+        })

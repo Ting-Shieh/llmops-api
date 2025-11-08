@@ -9,7 +9,7 @@ import os
 from typing import Any
 
 import yaml
-from pydantic import BaseModel, Field
+from langchain_core.pydantic_v1 import BaseModel, Field
 
 from internal.lib.helper import dynamic_import
 from .tool_entity import ToolEntity

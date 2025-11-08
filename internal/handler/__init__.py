@@ -6,6 +6,7 @@
 @File   : __init__.py.py
 """
 from .account_handler import AccountHandler
+from .ai_handler import AIHandler
 from .api_tool_handler import ApiToolHandler
 from .app_handler import AppHandler
 from .auth_handler import AuthHandler
@@ -24,5 +25,6 @@ __all__ = [
     "SegmentHandler",
     "OAuthHandler",
     "AccountHandler",
-    "AuthHandler"
+    "AuthHandler",
+    "AIHandler",
 ]

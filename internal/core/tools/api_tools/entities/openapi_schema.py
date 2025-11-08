@@ -7,7 +7,7 @@
 """
 from enum import Enum
 
-from pydantic import BaseModel, Field, field_validator
+from langchain_core.pydantic_v1 import BaseModel, Field, validator
 
 from internal.exception import ValidateErrorException
 
@@ -55,21 +55,21 @@ class OpenAPISchema(BaseModel):
         description="工具提供商的路徑參數字典"
     )
 
-    @field_validator("server", mode="before")
+    @validator("server", pre=True)
     def validate_server(cls, server: str) -> str:
         """效驗server數據"""
         if server is None or server == "":
             raise ValidateErrorException("server不能為空且為字符串")
         return server
 
-    @field_validator("description", mode="before")
+    @validator("description", pre=True)
     def validate_description(cls, description: str) -> str:
         """效驗server數據"""
         if description is None or description == "":
             raise ValidateErrorException("description不能為空且為字符串")
         return description
 
-    @field_validator("paths", mode="before")
+    @validator("paths", pre=True)
     def validate_paths(cls, paths: dict[str, dict]) -> dict[str, dict]:
         """效驗paths數據，涵蓋：方法提取，operationId唯一標誌，parameters校驗"""
         # 1.paths不能為空且類型為字典

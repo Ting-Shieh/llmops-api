@@ -32,9 +32,11 @@ from internal.model.account import Account
 from internal.schema.app_schema import DebugChatReq, CreateAppReq, GetPublishHistoriesWithPageReq
 from pkg.paginator import Paginator
 from pkg.sqlalchemy import SQLAlchemy
-from . import LanguageModelService, RetrievalService, ConversationService
 from .app_config_service import AppConfigService
 from .base_service import BaseService
+from .conversation_service import ConversationService
+from .language_model_service import LanguageModelService
+from .retrieval_service import RetrievalService
 
 
 @inject
@@ -446,7 +448,7 @@ class AppService(BaseService):
                     # 16.處理其他類型事件的消息
                     agent_thoughts[event_id] = agent_thought
             data = {
-                **agent_thought.model_dump(include={
+                **agent_thought.dict(include={
                     "event", "thought", "observation", "tool", "tool_input", "answer",
                     "total_token_count", "total_price", "latency",
                 }),

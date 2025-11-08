@@ -36,3 +36,16 @@ class UploadFile(db.Model):
         nullable=False,
         server_default=text("CURRENT_TIMESTAMP(0)")
     )
+
+    @property
+    def url(self) -> str:
+        """
+        動態生成文件的訪問 URL
+        有效期設為 7 天，與用戶登入期間一致
+        """
+        from internal.service.gcs_service import GcsService
+        return GcsService.get_file_url(
+            key=self.key,
+            signed=True,
+            expiration_minutes=60 * 24 * 7  # 7 天
+        )
