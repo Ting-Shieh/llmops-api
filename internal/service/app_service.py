@@ -14,8 +14,9 @@ from uuid import UUID
 from flask import current_app
 from injector import inject
 from sqlalchemy import func, desc
+from sqlalchemy.orm import joinedload
 
-from internal.core.agent.agents import FunctionCallAgent, ReACTAgent
+from internal.core.agent.agents import FunctionCallAgent, ReACTAgent, AgentQueueManager
 from internal.core.agent.entities.agent_entity import AgentConfig
 from internal.core.agent.entities.queue_entity import QueueEvent
 from internal.core.language_model.entities.model_entity import ModelFeature
@@ -29,7 +30,8 @@ from internal.exception import ForbiddenException, NotFoundException, ValidateEr
 from internal.lib.helper import remove_fields
 from internal.model import App, AppConfigVersion, ApiTool, Dataset, AppDatasetJoin, AppConfig, Conversation, Message
 from internal.model.account import Account
-from internal.schema.app_schema import DebugChatReq, CreateAppReq, GetPublishHistoriesWithPageReq
+from internal.schema.app_schema import DebugChatReq, CreateAppReq, GetPublishHistoriesWithPageReq, \
+    GetDebugConversationMessagesWithPageReq
 from pkg.paginator import Paginator
 from pkg.sqlalchemy import SQLAlchemy
 from .app_config_service import AppConfigService
@@ -427,7 +429,7 @@ class AppService(BaseService):
                         agent_thoughts[event_id] = agent_thought
                     else:
                         # 15.疊加智慧體消息
-                        agent_thoughts[event_id] = agent_thoughts[event_id].model_copy(update={
+                        agent_thoughts[event_id] = agent_thoughts[event_id].copy(update={
                             "thought": agent_thoughts[event_id].thought + agent_thought.thought,
                             # 消息相關數據
                             "message": agent_thought.message,
@@ -749,3 +751,57 @@ class AppService(BaseService):
                     raise ValidateErrorException("輸入審核預設響應不能為空")
 
         return draft_app_config
+
+    def stop_debug_chat(self, app_id: UUID, task_id: UUID, account: Account) -> None:
+        """根據傳遞的應用id+任務id+帳號，停止某個應用的除錯會話，中斷流式事件"""
+        # 1.獲取應用資訊並校驗權限
+        self.get_app(app_id, account)
+
+        # 2.調用智慧體隊列管理器停止特定任務
+        AgentQueueManager.set_stop_flag(task_id, InvokeFrom.DEBUGGER, account.id)
+
+    def get_debug_conversation_messages_with_page(
+            self,
+            app_id: UUID,
+            req: GetDebugConversationMessagesWithPageReq,
+            account: Account
+    ) -> tuple[list[Message], Paginator]:
+        """根據傳遞的應用id+請求數據，獲取除錯會話消息列表分頁數據"""
+        # 1.獲取應用資訊並校驗權限
+        app = self.get_app(app_id, account)
+
+        # 2.獲取應用的除錯會話
+        debug_conversation = app.debug_conversation
+
+        # 3.構建分頁器並構建游標條件
+        paginator = Paginator(db=self.db, req=req)
+        filters = []
+        if req.created_at.data:
+            # 4.將時間戳轉換成DateTime
+            created_at_datetime = datetime.fromtimestamp(req.created_at.data)
+            filters.append(Message.created_at <= created_at_datetime)
+
+        # 5.執行分頁並查詢數據
+        messages = paginator.paginate(
+            self.db.session.query(Message).options(joinedload(Message.agent_thoughts)).filter(
+                Message.conversation_id == debug_conversation.id,
+                Message.status.in_([MessageStatus.STOP, MessageStatus.NORMAL]),
+                Message.answer != "",
+                *filters,
+            ).order_by(desc("created_at"))
+        )
+
+        return messages, paginator
+
+    def get_published_config(self, app_id: UUID, account: Account) -> dict[str, Any]:
+        """根據傳遞的應用id+帳號，獲取應用的發布配置"""
+        # 1.獲取應用資訊並校驗權限
+        app = self.get_app(app_id, account)
+
+        # 2.構建發布配置並返回
+        return {
+            "web_app": {
+                "token": app.token_with_default,
+                "status": app.status,
+            }
+        }

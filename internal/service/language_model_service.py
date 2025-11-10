@@ -52,7 +52,7 @@ class LanguageModelService(BaseService):
         """載入預設的大語言模型，在模型管理器中獲取不到模型或者出錯時使用默認模型進行兜底"""
         # 1.獲取openai服務提供者與模型類
         provider = self.language_model_manager.get_provider("openai")
-        model_entity = provider.get_model_entity("gpt-4o-mini")
+        model_entity = provider.get_model_entity("gpt-4o")
         model_class = provider.get_model_class(model_entity.model_type)
 
         # bug:原先寫法使用的是LangChain封裝的LLM類，需要替換成自訂封裝的類，否則會識別到模型不存在features

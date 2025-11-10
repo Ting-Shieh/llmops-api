@@ -80,7 +80,7 @@ class BaseAgent(Serializable, Runnable):
                         agent_thoughts[event_id] = agent_thought
                     else:
                         # 7.疊加智慧體消息事件
-                        agent_thoughts[event_id] = agent_thoughts[event_id].model_copy(update={
+                        agent_thoughts[event_id] = agent_thoughts[event_id].copy(update={
                             "thought": agent_thoughts[event_id].thought + agent_thought.thought,
                             "answer": agent_thoughts[event_id].answer + agent_thought.answer,
                             "latency": agent_thought.latency,

@@ -66,10 +66,13 @@ class GetDatasetResp(Schema):
 
     @pre_dump
     def process_data(self, data: Dataset, **kwargs):
+        # 動態刷新 GCS 簽名 URL
+        icon_url = self._refresh_gcs_url(data.icon)
+        
         return {
             "id": data.id,
             "name": data.name,
-            "icon": data.icon,
+            "icon": icon_url,
             "description": data.description,
             "document_count": data.document_count,
             "hit_count": data.hit_count,
@@ -78,6 +81,28 @@ class GetDatasetResp(Schema):
             "updated_at": int(data.updated_at.timestamp()),
             "created_at": int(data.created_at.timestamp()),
         }
+    
+    @staticmethod
+    def _refresh_gcs_url(url: str) -> str:
+        """刷新 GCS 簽名 URL，如果是過期的 GCS URL 則重新生成"""
+        if not url or "storage.googleapis.com" not in url:
+            return url
+        
+        try:
+            import re
+            from internal.service.gcs_service import GcsService
+            
+            # 從 URL 中提取 key（檔案路徑）
+            match = re.search(r'llmops_dev/(.+?)(?:\?|$)', url)
+            if match:
+                key = match.group(1)
+                # 重新生成 7 天有效期的 URL
+                return GcsService.get_file_url(key, signed=True, expiration_minutes=60 * 24 * 7)
+        except Exception:
+            # 如果解析失敗，返回原 URL
+            pass
+        
+        return url
 
 
 class UpdateDatasetReq(FlaskForm):
@@ -117,10 +142,13 @@ class GetDatasetsWithPageResp(Schema):
 
     @pre_dump
     def process_data(self, data: Dataset, **kwargs):
+        # 動態刷新 GCS 簽名 URL
+        icon_url = self._refresh_gcs_url(data.icon)
+        
         return {
             "id": data.id,
             "name": data.name,
-            "icon": data.icon,
+            "icon": icon_url,
             "description": data.description,
             "document_count": data.document_count,
             "related_app_count": data.related_app_count,
@@ -128,6 +156,30 @@ class GetDatasetsWithPageResp(Schema):
             "updated_at": int(data.updated_at.timestamp()),
             "created_at": int(data.created_at.timestamp()),
         }
+    
+    @staticmethod
+    def _refresh_gcs_url(url: str) -> str:
+        """刷新 GCS 簽名 URL，如果是過期的 GCS URL 則重新生成"""
+        if not url or "storage.googleapis.com" not in url:
+            return url
+        
+        try:
+            import re
+            from internal.service.gcs_service import GcsService
+            
+            # 從 URL 中提取 key（檔案路徑）
+            # 例如：https://storage.googleapis.com/llmops_dev/2025/06/19/uuid.png?Expires=...
+            # 提取：2025/06/19/uuid.png
+            match = re.search(r'llmops_dev/(.+?)(?:\?|$)', url)
+            if match:
+                key = match.group(1)
+                # 重新生成 7 天有效期的 URL
+                return GcsService.get_file_url(key, signed=True, expiration_minutes=60 * 24 * 7)
+        except Exception:
+            # 如果解析失敗，返回原 URL
+            pass
+        
+        return url
 
 
 class HitReq(FlaskForm):

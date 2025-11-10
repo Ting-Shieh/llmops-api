@@ -34,11 +34,15 @@ class BulidinToolHandler:
         buildin_tool = self.buildin_tool_service.get_provider_tools(provider_name, tool_name)
         return success_json(buildin_tool)
 
-    @login_required
     def get_provider_icon(self, provider_name: str):
         """根據傳遞的提供商獲取icon圖標流訊息"""
         icon, mimetype = self.buildin_tool_service.get_provider_icon(provider_name)
-        return send_file(io.BytesIO(icon), mimetype)
+        return send_file(
+            io.BytesIO(icon),
+            mimetype=mimetype,
+            as_attachment=False,
+            download_name=f"{provider_name}_icon.svg"
+        )
 
     @login_required
     def get_categories(self):

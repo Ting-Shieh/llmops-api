@@ -158,14 +158,38 @@ class AppConfigService(BaseService):
         # 3.循環獲取知識庫數據
         for dataset_id in validate_datasets:
             dataset = dataset_dict.get(str(dataset_id))
+            # 動態刷新 GCS 簽名 URL
+            icon_url = self._refresh_gcs_url(dataset.icon)
             datasets.append({
                 "id": str(dataset.id),
                 "name": dataset.name,
-                "icon": dataset.icon,
+                "icon": icon_url,
                 "description": dataset.description,
             })
 
         return datasets, validate_datasets
+    
+    @staticmethod
+    def _refresh_gcs_url(url: str) -> str:
+        """刷新 GCS 簽名 URL，如果是過期的 GCS URL 則重新生成"""
+        if not url or "storage.googleapis.com" not in url:
+            return url
+        
+        try:
+            import re
+            from internal.service.gcs_service import GcsService
+            
+            # 從 URL 中提取 key（檔案路徑）
+            match = re.search(r'llmops_dev/(.+?)(?:\?|$)', url)
+            if match:
+                key = match.group(1)
+                # 重新生成 7 天有效期的 URL
+                return GcsService.get_file_url(key, signed=True, expiration_minutes=60 * 24 * 7)
+        except Exception:
+            # 如果解析失敗，返回原 URL
+            pass
+        
+        return url
 
     def _process_and_validate_tools(self, origin_tools: list[dict]) -> tuple[list[dict], list[dict]]:
         """根據傳遞的原始工具資訊進行處理和校驗"""
