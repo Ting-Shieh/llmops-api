@@ -8,6 +8,7 @@
 import json
 import uuid
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Generator, Any
 from uuid import UUID
 
@@ -31,7 +32,7 @@ from internal.lib.helper import remove_fields
 from internal.model import App, AppConfigVersion, ApiTool, Dataset, AppDatasetJoin, AppConfig, Conversation, Message
 from internal.model.account import Account
 from internal.schema.app_schema import DebugChatReq, CreateAppReq, GetPublishHistoriesWithPageReq, \
-    GetDebugConversationMessagesWithPageReq
+    GetDebugConversationMessagesWithPageReq, GetAppsWithPageReq
 from pkg.paginator import Paginator
 from pkg.sqlalchemy import SQLAlchemy
 from .app_config_service import AppConfigService
@@ -110,6 +111,66 @@ class AppService(BaseService):
         app = self.get_app(app_id, account)
         self.delete(app)
         return app
+
+    def copy_app(self, app_id: UUID, account: Account) -> App:
+        """根據傳遞的應用id，拷貝Agent相關資訊並創建一個新Agent"""
+        # 1.獲取App+草稿配置，並校驗權限
+        app = self.get_app(app_id, account)
+        draft_app_config = app.draft_app_config
+
+        # 2.將數據轉換為字典並剔除無用數據
+        app_dict = app.__dict__.copy()
+        draft_app_config_dict = draft_app_config.__dict__.copy()
+
+        # 3.剔除無用欄位
+        app_remove_fields = [
+            "id", "app_config_id", "draft_app_config_id", "debug_conversation_id",
+            "status", "updated_at", "created_at", "_sa_instance_state",
+        ]
+        draft_app_config_remove_fields = [
+            "id", "app_id", "version", "updated_at", "created_at", "_sa_instance_state",
+        ]
+        remove_fields(app_dict, app_remove_fields)
+        remove_fields(draft_app_config_dict, draft_app_config_remove_fields)
+
+        # 4.開啟資料庫自動提交上下文
+        with self.db.auto_commit():
+            # 5.創建一個新的應用記錄
+            new_app = App(**app_dict, status=AppStatus.DRAFT)
+            self.db.session.add(new_app)
+            self.db.session.flush()
+
+            # 6.添加草稿配置
+            new_draft_app_config = AppConfigVersion(
+                **draft_app_config_dict,
+                app_id=new_app.id,
+                version=0,
+            )
+            self.db.session.add(new_draft_app_config)
+            self.db.session.flush()
+
+            # 7.更新應用的草稿配置id
+            new_app.draft_app_config_id = new_draft_app_config.id
+
+        # 8.返回創建好的新應用
+        return new_app
+
+    def get_apps_with_page(self, req: GetAppsWithPageReq, account: Account) -> tuple[list[App], Paginator]:
+        """根據傳遞的分頁參數獲取當前登入帳號下的應用分頁列表數據"""
+        # 1.構建分頁器
+        paginator = Paginator(db=self.db, req=req)
+
+        # 2.構建篩選條件
+        filters = [App.account_id == account.id]
+        if req.search_word.data:
+            filters.append(App.name.ilike(f"%{req.search_word.data}%"))
+
+        # 3.執行分頁操作
+        apps = paginator.paginate(
+            self.db.session.query(App).filter(*filters).order_by(desc("created_at"))
+        )
+
+        return apps, paginator
 
     def get_draft_app_config(self, app_id: UUID, account: Account) -> dict[str, Any]:
         """根據傳遞的應用id，獲取指定的應用草稿配置資訊"""

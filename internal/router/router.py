@@ -20,9 +20,12 @@ from internal.handler import (
     OAuthHandler,
     AccountHandler,
     AuthHandler,
-    AIHandler
+    AIHandler,
+    ApiKeyHandler
 )
+from internal.handler.builtin_app_handler import BuiltinAppHandler
 from internal.handler.document_handler import DocumentHandler
+from internal.handler.openapi_handler import OpenAPIHandler
 
 
 @inject
@@ -40,6 +43,9 @@ class Router:
     account_handler: AccountHandler
     auth_handler: AuthHandler
     ai_handler: AIHandler
+    api_key_handler: ApiKeyHandler
+    openapi_handler: OpenAPIHandler
+    builtin_app_handler: BuiltinAppHandler
 
     # # 使用 @dataclass
     # def __init__(self, app_handler: AppHandler):
@@ -49,14 +55,16 @@ class Router:
         """註冊路由"""
         # 1. 創建藍圖
         bp = Blueprint("llmops", __name__, url_prefix="")
+        openapi_bp = Blueprint("openapi", __name__, url_prefix="")
 
         # 2. 將url與對應控制器方法做綁定
         bp.add_url_rule("/ping", view_func=self.app_handler.ping)
+        bp.add_url_rule("/apps", view_func=self.app_handler.get_apps_with_page)
         bp.add_url_rule("/apps", methods=["POST"], view_func=self.app_handler.create_app)
         bp.add_url_rule("/apps/<uuid:app_id>", view_func=self.app_handler.get_app)
-        # bp.add_url_rule("/apps/<uuid:app_id>", methods=["POST"], view_func=self.app_handler.update_app)
-        # bp.add_url_rule("/apps/<uuid:app_id>/delete", methods=["POST"], view_func=self.app_handler.delete_app)
-        # bp.add_url_rule("/apps/<uuid:app_id>/copy", methods=["POST"], view_func=self.app_handler.copy_app)
+        bp.add_url_rule("/apps/<uuid:app_id>", methods=["POST"], view_func=self.app_handler.update_app)
+        bp.add_url_rule("/apps/<uuid:app_id>/delete", methods=["POST"], view_func=self.app_handler.delete_app)
+        bp.add_url_rule("/apps/<uuid:app_id>/copy", methods=["POST"], view_func=self.app_handler.copy_app)
         bp.add_url_rule("/apps/<uuid:app_id>/draft-app-config", view_func=self.app_handler.get_draft_app_config)
         bp.add_url_rule(
             "/apps/<uuid:app_id>/draft-app-config",
@@ -331,6 +339,45 @@ class Router:
             "/ai/suggested-questions",
             methods=["POST"],
             view_func=self.ai_handler.generate_suggested_questions,
+        )
+
+        # 9.API秘鑰模組
+        bp.add_url_rule(
+            "/openapi/api-keys",
+            view_func=self.api_key_handler.get_api_keys_with_page
+        )
+        bp.add_url_rule(
+            "/openapi/api-keys",
+            methods=["POST"],
+            view_func=self.api_key_handler.create_api_key,
+        )
+        bp.add_url_rule(
+            "/openapi/api-keys/<uuid:api_key_id>",
+            methods=["POST"],
+            view_func=self.api_key_handler.update_api_key,
+        )
+        bp.add_url_rule(
+            "/openapi/api-keys/<uuid:api_key_id>/is-active",
+            methods=["POST"],
+            view_func=self.api_key_handler.update_api_key_is_active,
+        )
+        bp.add_url_rule(
+            "/openapi/api-keys/<uuid:api_key_id>/delete",
+            methods=["POST"],
+            view_func=self.api_key_handler.delete_api_key,
+        )
+        openapi_bp.add_url_rule(
+            "/openapi/chat",
+            methods=["POST"],
+            view_func=self.openapi_handler.chat,
+        )
+        # 10.內建應用模組
+        bp.add_url_rule("/builtin-apps/categories", view_func=self.builtin_app_handler.get_builtin_app_categories)
+        bp.add_url_rule("/builtin-apps", view_func=self.builtin_app_handler.get_builtin_apps)
+        bp.add_url_rule(
+            "/builtin-apps/add-builtin-app-to-space",
+            methods=["POST"],
+            view_func=self.builtin_app_handler.add_builtin_app_to_space,
         )
 
         # 應用上去注冊藍圖

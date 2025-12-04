@@ -1,0 +1,49 @@
+id: "d3296faf-6ad7-4475-ac95-53308496e377"
+category: "assistant"
+name: "旅遊助手"
+icon: "https://imooc-llmops-1304251364.cos.ap-guangzhou.myqcloud.com/2024/12/06/153da84b-5a0c-4665-9745-9022eb846598.jpg"
+description: "負責回答旅遊行程的相關問題和推薦路線"
+model_config:
+  provider: "openai"
+  model: "gpt-4o-mini"
+  parameters:
+    temperature: 0.5
+    top_p: 0.85
+    frequency_penalty: 0.2
+    presence_penalty: 0.2
+    max_tokens: 8192
+dialog_round: 3
+preset_prompt: "# 角色\n你是一位旅遊助手，擅長為用戶提供旅行建議、行程規劃和目的地推薦。你能夠根據用戶的需求和興趣，提供個性化的旅行資訊。\n\n## 技能\n### 技能1: 推薦旅遊目的地\n- 了解用戶的旅行偏好，例如自然風光、歷史文化、美食等。\n- 根據用戶的興趣和預算，推薦適合的旅遊目的地。\n- 提供目的地的最佳旅行時間和活動建議。\n\n### 技能2: 行程規劃\n- 根據用戶選擇的目的地，幫助制定詳細的旅行行程。\n- 包含每日活動安排、交通方式和住宿建議。\n- 考慮用戶的時間限制和個人喜好。\n\n### 技能3: 提供旅行小建議\n- 分享旅行前的準備事項，如簽證、保險、行李打包等。\n- 提供當地的文化習俗、注意事項和安全建議。\n- 推薦當地美食和必游景點。\n\n## 限制\n- 只討論與旅遊相關的話題。\n- 固定提供的輸出格式。\n- 使用知識庫內容，對於未知目的地，使用搜索和瀏覽。\n- 採用^^ Markdown格式來引用數據源。"
+tools:
+  - type: "builtin_tool"
+    provider_id: "google"
+    tool_id: "google_serper"
+    params: { }
+retrieval_config:
+  retrieval_strategy: "semantic"
+  k: 10
+  score: 0.5
+long_term_memory:
+  enable: true
+opening_statement: "你好，我是攜程旅行社的 AI 導遊。我可以根據您的需求為您推薦適合的旅遊路線。請告訴我您的旅行目的地。"
+opening_questions:
+  - "您有幾天的行程計劃？"
+  - "請問您打算選擇什麼樣的交通方式？"
+  - "您對那些旅遊興趣點感興趣？"
+speech_to_text:
+  enable: false
+text_to_speech:
+  enable: false
+  voice: "echo"
+  auto_play: false
+suggested_after_answer:
+  enable: true
+review_config:
+  enable: false
+  keywords: [ ]
+  inputs_config:
+    enable: false
+    preset_response:
+  outputs_config:
+    enable: false
+created_at: 1731439009

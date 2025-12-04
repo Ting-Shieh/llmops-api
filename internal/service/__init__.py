@@ -12,6 +12,7 @@ from .api_tool_service import ApiToolService
 from .app_service import AppService
 from .base_service import BaseService
 from .buildin_tool_service import BuildinToolService
+from .builtin_app_service import BuiltinAppService
 from .conversation_service import ConversationService
 from .dataset_service import DatasetService
 from .document_service import DocumentService
@@ -23,6 +24,7 @@ from .jwt_service import JwtService
 from .keyword_table_service import KeywordTableService
 from .language_model_service import LanguageModelService
 from .oauth_service import OAuthService
+from .openapi_service import OpenAPIService
 from .process_rule_service import ProcessRuleService
 from .retrieval_service import RetrievalService
 from .segment_service import SegmentService
@@ -52,5 +54,7 @@ __all__ = [
     "AccountService",
     "OAuthService",
     "LanguageModelService",
-    "AIService"
+    "AIService",
+    "OpenAPIService",
+    "BuiltinAppService"
 ]

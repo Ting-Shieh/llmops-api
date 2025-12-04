@@ -7,9 +7,11 @@
 """
 from .account_handler import AccountHandler
 from .ai_handler import AIHandler
+from .api_key_handler import ApiKeyHandler
 from .api_tool_handler import ApiToolHandler
 from .app_handler import AppHandler
 from .auth_handler import AuthHandler
+from .builtin_app_handler import BuiltinAppHandler
 from .bulidin_tool_handler import BulidinToolHandler
 from .dataset_handler import DatasetHandler
 from .oauth_handler import OAuthHandler
@@ -27,4 +29,6 @@ __all__ = [
     "AccountHandler",
     "AuthHandler",
     "AIHandler",
+    "ApiKeyHandler",
+    "BuiltinAppHandler"
 ]

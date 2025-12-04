@@ -17,7 +17,7 @@ from internal.core.tools.api_tools.providers import ApiProviderManager
 from internal.core.tools.buildin_tools.providers import BuildinProviderManager
 from internal.entity.app_entity import DEFAULT_APP_CONFIG
 from internal.lib.helper import get_value_type, datetime_to_timestamp
-from internal.model import App, ApiTool, Dataset, AppConfig, AppConfigVersion
+from internal.model import App, ApiTool, Dataset, AppDatasetJoin, AppConfig, AppConfigVersion
 from pkg.sqlalchemy import SQLAlchemy
 from .base_service import BaseService
 from ..core.tools.api_tools.entities import ToolEntity
@@ -73,6 +73,48 @@ class AppConfigService(BaseService):
             workflows,
             datasets,
             draft_app_config,
+        )
+
+    def get_app_config(self, app: App) -> dict[str, Any]:
+        """根據傳遞的應用獲取該應用的運行配置"""
+        # 1.提取應用的草稿配置
+        app_config = app.app_config
+
+        # 2.校驗model_config資訊，如果運行時配置裡的model_config發生變化則進行更新
+        validate_model_config = self._process_and_validate_model_config(app_config.model_config)
+        if app_config.model_config != validate_model_config:
+            self.update(app_config, model_config=validate_model_config)
+
+        # 3.循環遍歷工具列表刪除已經被刪除的工具資訊
+        tools, validate_tools = self._process_and_validate_tools(app_config.tools)
+
+        # 4.判斷是否需要更新草稿配置中的工具列表資訊
+        if app_config.tools != validate_tools:
+            # 14.更新草稿配置中的工具列表
+            self.update(app_config, tools=validate_tools)
+
+        # 5.校驗知識庫列表，如果引用了不存在/被刪除的知識庫，需要剔除數據並更新，同時獲取知識庫的額外資訊
+        app_dataset_joins = app_config.app_dataset_joins
+        origin_datasets = [str(app_dataset_join.dataset_id) for app_dataset_join in app_dataset_joins]
+        datasets, validate_datasets = self._process_and_validate_datasets(origin_datasets)
+
+        # 6.判斷是否存在已刪除的知識庫，如果存在則更新
+        for dataset_id in (set(origin_datasets) - set(validate_datasets)):
+            with self.db.auto_commit():
+                self.db.session.query(AppDatasetJoin).filter(AppDatasetJoin.dataset_id == dataset_id).delete()
+
+        # # 7.校驗工作流列表對應的數據
+        # workflows, validate_workflows = self._process_and_validate_workflows(app_config.workflows)
+        # if set(validate_workflows) != set(app_config.workflows):
+        #     self.update(app_config, workflows=validate_workflows)
+        workflows = [{}]
+        # 8.將數據轉換成字典後返回
+        return self._process_and_transformer_app_config(
+            validate_model_config,
+            tools,
+            workflows,
+            datasets,
+            app_config,
         )
 
     def get_langchain_tools_by_tools_config(
@@ -168,17 +210,17 @@ class AppConfigService(BaseService):
             })
 
         return datasets, validate_datasets
-    
+
     @staticmethod
     def _refresh_gcs_url(url: str) -> str:
         """刷新 GCS 簽名 URL，如果是過期的 GCS URL 則重新生成"""
         if not url or "storage.googleapis.com" not in url:
             return url
-        
+
         try:
             import re
             from internal.service.gcs_service import GcsService
-            
+
             # 從 URL 中提取 key（檔案路徑）
             match = re.search(r'llmops_dev/(.+?)(?:\?|$)', url)
             if match:
@@ -188,7 +230,7 @@ class AppConfigService(BaseService):
         except Exception:
             # 如果解析失敗，返回原 URL
             pass
-        
+
         return url
 
     def _process_and_validate_tools(self, origin_tools: list[dict]) -> tuple[list[dict], list[dict]]:

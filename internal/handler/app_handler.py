@@ -90,6 +90,12 @@ class AppHandler:
         return success_message("刪除Agent智慧體應用成功")
 
     @login_required
+    def copy_app(self, app_id: UUID):
+        """根據傳遞的應用id快速拷貝該應用"""
+        app = self.app_service.copy_app(app_id, current_user)
+        return success_json({"id": app.id})
+    
+    @login_required
     def get_apps_with_page(self):
         """獲取當前登入帳號的應用分頁列表數據"""
         # 1.提取數據並校驗
@@ -143,7 +149,11 @@ class AppHandler:
             return validate_error_json(req.errors)
 
         # 2.調用服務回退指定版本到草稿
-        self.app_service.fallback_history_to_draft(app_id, req.app_config_version_id.data, current_user)
+        self.app_service.fallback_history_to_draft(
+            app_id,
+            req.app_config_version_id.data,
+            current_user
+        )
 
         return success_message("回退歷史配置至草稿成功")
 
