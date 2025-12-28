@@ -17,6 +17,7 @@ from .dataset_handler import DatasetHandler
 from .oauth_handler import OAuthHandler
 from .segment_handler import SegmentHandler
 from .upload_file_handler import UploadFileHandler
+from .workflow_handler import WorkflowHandler
 
 __all__ = [
     "AppHandler",
@@ -30,5 +31,6 @@ __all__ = [
     "AuthHandler",
     "AIHandler",
     "ApiKeyHandler",
-    "BuiltinAppHandler"
+    "BuiltinAppHandler",
+    "WorkflowHandler"
 ]
