@@ -12,7 +12,7 @@ langchain_community==0.3.25
 langchain_core==0.3.65
 langchain_openai==0.3.23
 langchain_pinecone==0.2.8
-langchain_text_splitters==0.3.8
+langchain_text_splitters>=0.3.9
 langchain_weaviate==0.0.5
 langgraph==0.4.8
 marshmallow==4.0.0
