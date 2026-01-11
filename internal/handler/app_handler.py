@@ -68,7 +68,6 @@ class AppHandler:
         resp = GetAppResp()
         return success_json(resp.dump(app))
 
-    # Todo
     @login_required
     def update_app(self, app_id: UUID):
         """根據傳遞的資訊更新指定的應用"""
@@ -82,7 +81,6 @@ class AppHandler:
 
         return success_message("修改Agent智慧體應用成功")
 
-    # Todo
     @login_required
     def delete_app(self, app_id: UUID):
         """根據傳遞的資訊刪除指定的應用"""
@@ -94,7 +92,7 @@ class AppHandler:
         """根據傳遞的應用id快速拷貝該應用"""
         app = self.app_service.copy_app(app_id, current_user)
         return success_json({"id": app.id})
-    
+
     @login_required
     def get_apps_with_page(self):
         """獲取當前登入帳號的應用分頁列表數據"""

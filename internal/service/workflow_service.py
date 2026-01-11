@@ -61,15 +61,20 @@ class WorkflowService(BaseService):
         if check_workflow:
             raise ValidateErrorException(f"在當前帳號下已創建[{req.tool_call_name.data}]工作流，不支持重名")
 
-        # 2.調用資料庫服務創建工作流
-        return self.create(Workflow, **{
-            **req.data,
+        # 2.從 icon URL 中提取 key（檔案路徑），只存儲 key 而不是完整的 signed URL
+        icon_key = self._extract_key_from_url(req.icon.data) if req.icon.data else ""
+
+        # 3.調用資料庫服務創建工作流
+        workflow_data = {
+            **{k: v for k, v in req.data.items() if k != 'icon'},  # 排除 icon
+            "icon": icon_key,  # 只存儲 key
             **DEFAULT_WORKFLOW_CONFIG,
             "account_id": account.id,
             "is_debug_passed": False,
             "status": WorkflowStatus.DRAFT,
             "tool_call_name": req.tool_call_name.data.strip(),
-        })
+        }
+        return self.create(Workflow, **workflow_data)
 
     def get_workflow(self, workflow_id: UUID, account: Account) -> Workflow:
         """根據傳遞的工作流id，獲取指定的工作流基礎資訊"""
@@ -110,7 +115,11 @@ class WorkflowService(BaseService):
         if check_workflow:
             raise ValidateErrorException(f"在當前帳號下已創建[{kwargs.get('tool_call_name', '')}]工作流，不支持重名")
 
-        # 3.更新工作流基礎資訊
+        # 3.如果更新 icon，從 URL 中提取 key（檔案路徑），只存儲 key 而不是完整的 signed URL
+        if "icon" in kwargs and kwargs["icon"]:
+            kwargs["icon"] = self._extract_key_from_url(kwargs["icon"])
+
+        # 4.更新工作流基礎資訊
         self.update(workflow, **kwargs)
 
         return workflow
@@ -530,3 +539,22 @@ class WorkflowService(BaseService):
             "nodes": [convert_model_to_dict(node_data) for node_data in node_data_dict.values()],
             "edges": [convert_model_to_dict(edge_data) for edge_data in edge_data_dict.values()],
         }
+
+    @staticmethod
+    def _extract_key_from_url(url: str) -> str:
+        """從 GCS signed URL 中提取 key（檔案路徑），只存儲 key 而不是完整的 signed URL"""
+        if not url or "storage.googleapis.com" not in url:
+            return url  # 如果不是 GCS URL，直接返回
+        
+        try:
+            import re
+            # 從 URL 中提取 key（檔案路徑）
+            # 例如：https://storage.googleapis.com/llmops_dev/2026/01/02/file.png?Expires=...
+            # 提取：2026/01/02/file.png
+            match = re.search(r'llmops_dev/(.+?)(?:\?|$)', url)
+            if match:
+                return match.group(1)
+        except Exception:
+            pass
+        
+        return url  # 如果解析失敗，返回原 URL

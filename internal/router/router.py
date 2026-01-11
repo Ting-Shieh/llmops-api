@@ -21,8 +21,11 @@ from internal.handler import (
     AccountHandler,
     AuthHandler,
     AIHandler,
-    ApiKeyHandler, WorkflowHandler
+    ApiKeyHandler,
+    WorkflowHandler,
+    LanguageModelHandler
 )
+from internal.handler.assistant_agent_handler import AssistantAgentHandler
 from internal.handler.builtin_app_handler import BuiltinAppHandler
 from internal.handler.document_handler import DocumentHandler
 from internal.handler.openapi_handler import OpenAPIHandler
@@ -47,6 +50,8 @@ class Router:
     openapi_handler: OpenAPIHandler
     builtin_app_handler: BuiltinAppHandler
     workflow_handler: WorkflowHandler
+    language_model_handler: LanguageModelHandler
+    assistant_agent_handler: AssistantAgentHandler
 
     # # 使用 @dataclass
     # def __init__(self, app_handler: AppHandler):
@@ -434,6 +439,41 @@ class Router:
             "/workflows/<uuid:workflow_id>/cancel-publish",
             methods=["POST"],
             view_func=self.workflow_handler.cancel_publish_workflow,
+        )
+
+        # 12.語言模型模組
+        bp.add_url_rule(
+            "/language-models",
+            view_func=self.language_model_handler.get_language_models
+        )
+        bp.add_url_rule(
+            "/language-models/<string:provider_name>/icon",
+            view_func=self.language_model_handler.get_language_model_icon,
+        )
+        bp.add_url_rule(
+            "/language-models/<string:provider_name>/<string:model_name>",
+            view_func=self.language_model_handler.get_language_model,
+        )
+
+        # 13.輔助Agent模組
+        bp.add_url_rule(
+            "/assistant-agent/chat",
+            methods=["POST"],
+            view_func=self.assistant_agent_handler.assistant_agent_chat,
+        )
+        bp.add_url_rule(
+            "/assistant-agent/chat/<uuid:task_id>/stop",
+            methods=["POST"],
+            view_func=self.assistant_agent_handler.stop_assistant_agent_chat,
+        )
+        bp.add_url_rule(
+            "/assistant-agent/messages",
+            view_func=self.assistant_agent_handler.get_assistant_agent_messages_with_page,
+        )
+        bp.add_url_rule(
+            "/assistant-agent/delete-conversation",
+            methods=["POST"],
+            view_func=self.assistant_agent_handler.delete_assistant_agent_conversation,
         )
 
         # 應用上去注冊藍圖

@@ -20,19 +20,36 @@ from sqlalchemy.orm import joinedload
 from internal.core.agent.agents import FunctionCallAgent, ReACTAgent, AgentQueueManager
 from internal.core.agent.entities.agent_entity import AgentConfig
 from internal.core.agent.entities.queue_entity import QueueEvent
-from internal.core.language_model.entities.model_entity import ModelFeature
+from internal.core.language_model import LanguageModelManager
+from internal.core.language_model.entities.model_entity import ModelFeature, ModelParameterType
 from internal.core.memory import TokenBufferMemory
 from internal.core.tools.buildin_tools.providers import BuildinProviderManager
 from internal.entity.app_entity import DEFAULT_APP_CONFIG, AppStatus, AppConfigType
 from internal.entity.audio_entity import ALLOWED_AUDIO_VOICES
 from internal.entity.conversation_entity import InvokeFrom, MessageStatus
 from internal.entity.dataset_entity import RetrievalSource
+from internal.entity.workflow_entity import WorkflowStatus
 from internal.exception import ForbiddenException, NotFoundException, ValidateErrorException, FailException
-from internal.lib.helper import remove_fields
-from internal.model import App, AppConfigVersion, ApiTool, Dataset, AppDatasetJoin, AppConfig, Conversation, Message
+from internal.lib.helper import remove_fields, get_value_type
+from internal.model import (
+    App,
+    AppConfigVersion,
+    ApiTool,
+    Dataset,
+    AppDatasetJoin,
+    AppConfig,
+    Conversation,
+    Message,
+    Workflow
+)
 from internal.model.account import Account
-from internal.schema.app_schema import DebugChatReq, CreateAppReq, GetPublishHistoriesWithPageReq, \
-    GetDebugConversationMessagesWithPageReq, GetAppsWithPageReq
+from internal.schema.app_schema import (
+    DebugChatReq,
+    CreateAppReq,
+    GetPublishHistoriesWithPageReq,
+    GetDebugConversationMessagesWithPageReq,
+    GetAppsWithPageReq
+)
 from pkg.paginator import Paginator
 from pkg.sqlalchemy import SQLAlchemy
 from .app_config_service import AppConfigService
@@ -52,6 +69,7 @@ class AppService(BaseService):
     retrieval_service: RetrievalService
     conversation_service: ConversationService
     buildin_provider_manager: BuildinProviderManager
+    language_model_manager: LanguageModelManager
 
     def create_app(self, req: CreateAppReq, account: Account) -> App:
         """創建Agent應用服務"""
@@ -221,8 +239,8 @@ class AppService(BaseService):
                 }
                 for tool in draft_app_config["tools"]
             ],
-            # todo:工作留模塊之後再更改
-            workflows=draft_app_config["workflows"],  # [workflow["id"] for workflow in draft_app_config["workflows"]],
+
+            workflows=[workflow["id"] for workflow in draft_app_config["workflows"]],
             retrieval_config=draft_app_config["retrieval_config"],
             long_term_memory=draft_app_config["long_term_memory"],
             opening_statement=draft_app_config["opening_statement"],
@@ -399,7 +417,9 @@ class AppService(BaseService):
 
     def debug_chat(
             self,
-            app_id: uuid.UUID, req: DebugChatReq, account: Account
+            app_id: uuid.UUID,
+            req: DebugChatReq,
+            account: Account
     ) -> Generator:
         """根據傳遞的應用id+提問query向特定的應用發起會話除錯"""
         # 1.獲取應用資訊並校驗權限
@@ -451,12 +471,11 @@ class AppService(BaseService):
             )
             tools.append(dataset_retrieval)
 
-        # todo: 10.檢測是否關聯工作流，如果關聯了工作流則將工作流構建成工具添加到tools中
-        # if draft_app_config["workflows"]:
-        #     workflow_tools = self.app_config_service.get_langchain_tools_by_workflow_ids(
-        #         [workflow["id"] for workflow in draft_app_config["workflows"]]
-        #     )
-        #     tools.extend(workflow_tools)
+        if draft_app_config["workflows"]:
+            workflow_tools = self.app_config_service.get_langchain_tools_by_workflow_ids(
+                [workflow["id"] for workflow in draft_app_config["workflows"]]
+            )
+            tools.extend(workflow_tools)
 
         # 10.根據LLM是否支持tool_call決定使用不同的Agent
         agent_class = FunctionCallAgent if ModelFeature.TOOL_CALL in llm.features else ReACTAgent
@@ -554,8 +573,73 @@ class AppService(BaseService):
         ):
             raise ValidateErrorException("草稿配置欄位出錯，請核實後重試")
 
-        # todo: 校驗model_config欄位 => 待多LLM校驗
         # 3.校驗model_config欄位，provider/model使用嚴格校驗(出錯的時候直接拋出)，parameters使用寬鬆校驗，出錯時使用預設值
+        if "model_config" in draft_app_config:
+            # 3.1 獲取模型配置並判斷數據是否為字典
+            model_config = draft_app_config["model_config"]
+            if not isinstance(model_config, dict):
+                raise ValidateErrorException("模型配置格式錯誤，請核實後重試")
+
+            # 3.2 判斷model_config鍵資訊是否正確
+            if set(model_config.keys()) != {"provider", "model", "parameters"}:
+                raise ValidateErrorException("模型鍵配置格式錯誤，請核實後重試")
+
+            # 3.3 判斷模型提供者資訊是否正確
+            if not model_config["provider"] or not isinstance(model_config["provider"], str):
+                raise ValidateErrorException("模型服務提供商類型必須為字串")
+            provider = self.language_model_manager.get_provider(model_config["provider"])
+            if not provider:
+                raise ValidateErrorException("該模型服務提供商不存在，請核實後重試")
+
+            # 3.4 判斷模型資訊是否正確
+            if not model_config["model"] or not isinstance(model_config["model"], str):
+                raise ValidateErrorException("模型名字必須是否字串")
+            model_entity = provider.get_model_entity(model_config["model"])
+            if not model_entity:
+                raise ValidateErrorException("該服務提供商下不存在該模型，請核實後重試")
+
+            # 3.5 判斷傳遞的parameters是否正確，如果不正確則設置預設值，並剔除多餘欄位，補全未傳遞的欄位
+            parameters = {}
+            for parameter in model_entity.parameters:
+                # 3.6 從model_config中獲取參數值，如果不存在則設置為預設值
+                parameter_value = model_config["parameters"].get(parameter.name, parameter.default)
+
+                # 3.7 判斷參數是否必填
+                if parameter.required:
+                    # 3.8 參數必填，則值不允許為None，如果為None則設置預設值
+                    if parameter_value is None:
+                        parameter_value = parameter.default
+                    else:
+                        # 3.9 值非空則校驗數據類型是否正確，不正確則設置預設值
+                        if get_value_type(parameter_value) != parameter.type.value:
+                            parameter_value = parameter.default
+                else:
+                    # 3.10 參數非必填，數據非空的情況下需要校驗
+                    if parameter_value is not None:
+                        if get_value_type(parameter_value) != parameter.type.value:
+                            parameter_value = parameter.default
+
+                # 3.11 判斷參數是否存在options，如果存在則數值必須在options中選擇
+                if parameter.options and parameter_value not in parameter.options:
+                    parameter_value = parameter.default
+
+                # 3.12 參數類型為int/float，如果存在min/max時候需要校驗
+                if parameter.type in [
+                    ModelParameterType.INT,
+                    ModelParameterType.FLOAT
+                ] and parameter_value is not None:
+                    # 3.13 校驗數值的min/max
+                    if (
+                            (parameter.min and parameter_value < parameter.min)
+                            or (parameter.max and parameter_value > parameter.max)
+                    ):
+                        parameter_value = parameter.default
+
+                parameters[parameter.name] = parameter_value
+
+            # 3.13 覆蓋Agent配置中的模型配置
+            model_config["parameters"] = parameters
+            draft_app_config["model_config"] = model_config
 
         # 4.校驗dialog_round上下文輪數，校驗數據類型以及範圍
         if "dialog_round" in draft_app_config:
@@ -626,9 +710,33 @@ class AppService(BaseService):
             # 6.11 重新賦值工具
             draft_app_config["tools"] = validate_tools
 
-        # todo:校驗workflow
         # 7.校驗workflow，提取已發布+權限正確的工作流列表進行綁定（更新配置階段不校驗工作流是否可以正常運行）
+        if "workflows" in draft_app_config:
+            workflows = draft_app_config["workflows"]
 
+            # 7.1 判斷workflows是否為列表
+            if not isinstance(workflows, list):
+                raise ValidateErrorException("綁定工作流列表參數格式錯誤")
+            # 7.2 判斷關聯的工作流列表是否超過5個
+            if len(workflows) > 5:
+                raise ValidateErrorException("Agent綁定的工作流數量不能超過5個")
+            # 7.3 循環校驗工作流的每個參數，類型必須為UUID
+            for workflow_id in workflows:
+                try:
+                    UUID(workflow_id)
+                except Exception as _:
+                    raise ValidateErrorException("工作流參數必須是UUID")
+            # 7.4 判斷是否重複關聯了工作流
+            if len(set(workflows)) != len(workflows):
+                raise ValidateErrorException("綁定工作流存在重複")
+            # 7.5 校驗關聯工作流的權限，剔除不屬於當前帳號，亦或者未發布的工作流
+            workflow_records = self.db.session.query(Workflow).filter(
+                Workflow.id.in_(workflows),
+                Workflow.account_id == account.id,
+                Workflow.status == WorkflowStatus.PUBLISHED,
+            ).all()
+            workflow_sets = set([str(workflow_record.id) for workflow_record in workflow_records])
+            draft_app_config["workflows"] = [workflow_id for workflow_id in workflows if workflow_id in workflow_sets]
         # 8.校驗datasets知識庫列表
         if "datasets" in draft_app_config:
             datasets = draft_app_config["datasets"]
@@ -813,7 +921,12 @@ class AppService(BaseService):
 
         return draft_app_config
 
-    def stop_debug_chat(self, app_id: UUID, task_id: UUID, account: Account) -> None:
+    def stop_debug_chat(
+            self,
+            app_id: UUID,
+            task_id: UUID,
+            account: Account
+    ) -> None:
         """根據傳遞的應用id+任務id+帳號，停止某個應用的除錯會話，中斷流式事件"""
         # 1.獲取應用資訊並校驗權限
         self.get_app(app_id, account)
@@ -854,7 +967,11 @@ class AppService(BaseService):
 
         return messages, paginator
 
-    def get_published_config(self, app_id: UUID, account: Account) -> dict[str, Any]:
+    def get_published_config(
+            self,
+            app_id: UUID,
+            account: Account
+    ) -> dict[str, Any]:
         """根據傳遞的應用id+帳號，獲取應用的發布配置"""
         # 1.獲取應用資訊並校驗權限
         app = self.get_app(app_id, account)

@@ -10,6 +10,7 @@ from uuid import UUID
 
 from flask import request
 from flask_login import current_user, login_required
+from injector import inject
 
 from internal.schema.workflow_schema import (
     CreateWorkflowReq,
@@ -18,6 +19,7 @@ from internal.schema.workflow_schema import (
     GetWorkflowsWithPageReq,
     GetWorkflowsWithPageResp,
 )
+from internal.service import WorkflowService
 from pkg.paginator import PageModel
 from pkg.response import validate_error_json, success_json, success_message, compact_generate_response
 

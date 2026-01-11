@@ -95,7 +95,6 @@ class RetrievalService(BaseService):
                 dataset_id=dataset_id,
                 query=query,
                 source=retrival_source,
-                # todo:等待APP配置模組完成後進行調整
                 source_app_id=None,
                 created_by=account_id,
             )

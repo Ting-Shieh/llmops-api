@@ -11,7 +11,13 @@ import re
 import time
 import uuid
 
-from langchain_core.messages import HumanMessage, RemoveMessage, messages_to_dict, SystemMessage, AIMessage
+from langchain_core.messages import (
+    HumanMessage,
+    RemoveMessage,
+    messages_to_dict,
+    SystemMessage,
+    AIMessage
+)
 from langchain_core.tools import render_text_description_and_args
 
 from internal.core.agent.entities.agent_entity import (

@@ -75,11 +75,14 @@ class GetWorkflowResp(Schema):
 
     @pre_dump
     def process_data(self, data: Workflow, **kwargs):
+        # 動態生成 icon 的 signed URL
+        icon_url = self._refresh_gcs_url(data.icon) if data.icon else ""
+        
         return {
             "id": data.id,
             "name": data.name,
             "tool_call_name": data.tool_call_name,
-            "icon": data.icon,
+            "icon": icon_url,
             "description": data.description,
             "status": data.status,
             "is_debug_passed": data.is_debug_passed,
@@ -88,6 +91,33 @@ class GetWorkflowResp(Schema):
             "updated_at": datetime_to_timestamp(data.updated_at),
             "created_at": datetime_to_timestamp(data.created_at),
         }
+    
+    @staticmethod
+    def _refresh_gcs_url(url: str) -> str:
+        """刷新 GCS 簽名 URL，如果是過期的 GCS URL 則重新生成，如果是 key 則生成新的 signed URL"""
+        if not url:
+            return url
+        
+        try:
+            import re
+            from internal.service.gcs_service import GcsService
+            
+            # 如果已經是完整的 GCS URL，從中提取 key
+            if "storage.googleapis.com" in url:
+                match = re.search(r'llmops_dev/(.+?)(?:\?|$)', url)
+                if match:
+                    key = match.group(1)
+                else:
+                    return url  # 無法提取 key，返回原 URL
+            else:
+                # 如果只是 key（檔案路徑），直接使用
+                key = url
+            
+            # 重新生成 7 天有效期的 URL
+            return GcsService.get_file_url(key, signed=True, expiration_minutes=60 * 24 * 7)
+        except Exception:
+            # 如果解析失敗，返回原 URL
+            return url
 
 
 class GetWorkflowsWithPageReq(PaginatorReq):
@@ -115,11 +145,14 @@ class GetWorkflowsWithPageResp(Schema):
 
     @pre_dump
     def process_data(self, data: Workflow, **kwargs):
+        # 動態生成 icon 的 signed URL
+        icon_url = self._refresh_gcs_url(data.icon) if data.icon else ""
+        
         return {
             "id": data.id,
             "name": data.name,
             "tool_call_name": data.tool_call_name,
-            "icon": data.icon,
+            "icon": icon_url,
             "description": data.description,
             "status": data.status,
             "is_debug_passed": data.is_debug_passed,
@@ -128,3 +161,30 @@ class GetWorkflowsWithPageResp(Schema):
             "updated_at": datetime_to_timestamp(data.updated_at),
             "created_at": datetime_to_timestamp(data.created_at),
         }
+    
+    @staticmethod
+    def _refresh_gcs_url(url: str) -> str:
+        """刷新 GCS 簽名 URL，如果是過期的 GCS URL 則重新生成，如果是 key 則生成新的 signed URL"""
+        if not url:
+            return url
+        
+        try:
+            import re
+            from internal.service.gcs_service import GcsService
+            
+            # 如果已經是完整的 GCS URL，從中提取 key
+            if "storage.googleapis.com" in url:
+                match = re.search(r'llmops_dev/(.+?)(?:\?|$)', url)
+                if match:
+                    key = match.group(1)
+                else:
+                    return url  # 無法提取 key，返回原 URL
+            else:
+                # 如果只是 key（檔案路徑），直接使用
+                key = url
+            
+            # 重新生成 7 天有效期的 URL
+            return GcsService.get_file_url(key, signed=True, expiration_minutes=60 * 24 * 7)
+        except Exception:
+            # 如果解析失敗，返回原 URL
+            return url

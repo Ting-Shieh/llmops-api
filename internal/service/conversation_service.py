@@ -22,9 +22,10 @@ from internal.entity.conversation_entity import (
     CONVERSATION_NAME_TEMPLATE,
     ConversationInfo,
     SUGGESTED_QUESTIONS_TEMPLATE,
-    SuggestedQuestions, InvokeFrom, )
+    SuggestedQuestions, InvokeFrom,
+)
 from internal.exception import NotFoundException
-from internal.model.conversation import Conversation, MessageAgentThought, Message
+from internal.model import Conversation, Message, MessageAgentThought, Account
 from pkg.sqlalchemy import SQLAlchemy
 from .base_service import BaseService
 from ..core.agent.entities.queue_entity import QueueEvent, AgentThought
@@ -290,18 +291,15 @@ class ConversationService(BaseService):
 
     def get_conversation(
             self,
-            conversation_id: UUID
+            conversation_id: UUID,
+            account: Account
     ) -> Conversation:
         """根據傳遞的會話id+account，獲取指定的會話資訊"""
-
-        # todo: 等待授權認證模塊完成進行切換調整
-        account_id = UUID("f2ac22f0-e5c6-be86-87c1-9e55c419aa2d")
-
         # 1.根據conversation_id查詢會話記錄
         conversation = self.get(Conversation, conversation_id)
         if (
                 not conversation
-                or conversation.created_by != account_id
+                or conversation.created_by != account.id
                 or conversation.is_deleted
         ):
             raise NotFoundException("該會話不存在或被刪除，請核實後重試")

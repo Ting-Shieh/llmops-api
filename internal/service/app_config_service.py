@@ -7,6 +7,7 @@
 """
 from dataclasses import dataclass
 from typing import Any, Union
+from uuid import UUID
 
 from injector import inject
 from langchain_core.tools import BaseTool
@@ -15,18 +16,21 @@ from internal.core.language_model.entities.model_entity import ModelParameterTyp
 from internal.core.language_model.language_model_manager import LanguageModelManager
 from internal.core.tools.api_tools.providers import ApiProviderManager
 from internal.core.tools.buildin_tools.providers import BuildinProviderManager
+from internal.core.workflow import Workflow as WorkflowTool
 from internal.entity.app_entity import DEFAULT_APP_CONFIG
 from internal.lib.helper import get_value_type, datetime_to_timestamp
-from internal.model import App, ApiTool, Dataset, AppDatasetJoin, AppConfig, AppConfigVersion
+from internal.model import App, ApiTool, Dataset, AppDatasetJoin, AppConfig, AppConfigVersion, Workflow
 from pkg.sqlalchemy import SQLAlchemy
 from .base_service import BaseService
 from ..core.tools.api_tools.entities import ToolEntity
+from ..core.workflow.entities.workflow_entity import WorkflowConfig
+from ..entity.workflow_entity import WorkflowStatus
 
 
 @inject
 @dataclass
 class AppConfigService(BaseService):
-    """应用配置服务"""
+    """應用配置服務"""
     db: SQLAlchemy
     api_provider_manager: ApiProviderManager
     builtin_provider_manager: BuildinProviderManager
@@ -37,11 +41,10 @@ class AppConfigService(BaseService):
         # 1.提取應用的草稿配置
         draft_app_config = app.draft_app_config
 
-        # todo:校驗model_config資訊 => 等多LLM模組引入在完善
-        # # 2.校驗model_config資訊，如果使用了不存在的提供者或者模型，則使用預設值(寬鬆校驗)
-        # validate_model_config = self._process_and_validate_model_config(draft_app_config.model_config)
-        # if draft_app_config.model_config != validate_model_config:
-        #     self.update(draft_app_config, model_config=validate_model_config)
+        # 2.校驗model_config資訊，如果使用了不存在的提供者或者模型，則使用預設值(寬鬆校驗)
+        validate_model_config = self._process_and_validate_model_config(draft_app_config.model_config)
+        if draft_app_config.model_config != validate_model_config:
+            self.update(draft_app_config, model_config=validate_model_config)
 
         # 3.循環遍歷工具列表刪除已經被刪除的工具資訊
         tools, validate_tools = self._process_and_validate_tools(draft_app_config.tools)
@@ -58,12 +61,11 @@ class AppConfigService(BaseService):
         if set(validate_datasets) != set(draft_app_config.datasets):
             self.update(draft_app_config, datasets=validate_datasets)
 
-        # todo: 校驗工作流列表對應的數據
         workflows = []
-        # # 7.校驗工作流列表對應的數據
-        # workflows, validate_workflows = self._process_and_validate_workflows(draft_app_config.workflows)
-        # if set(validate_workflows) != set(draft_app_config.workflows):
-        #     self.update(draft_app_config, workflows=validate_workflows)
+        # 7.校驗工作流列表對應的數據
+        workflows, validate_workflows = self._process_and_validate_workflows(draft_app_config.workflows)
+        if set(validate_workflows) != set(draft_app_config.workflows):
+            self.update(draft_app_config, workflows=validate_workflows)
 
         # 20.將數據轉換成字典後返回
         validate_model_config = {}
@@ -103,11 +105,12 @@ class AppConfigService(BaseService):
             with self.db.auto_commit():
                 self.db.session.query(AppDatasetJoin).filter(AppDatasetJoin.dataset_id == dataset_id).delete()
 
-        # # 7.校驗工作流列表對應的數據
-        # workflows, validate_workflows = self._process_and_validate_workflows(app_config.workflows)
-        # if set(validate_workflows) != set(app_config.workflows):
-        #     self.update(app_config, workflows=validate_workflows)
+        # 7.校驗工作流列表對應的數據
+        workflows, validate_workflows = self._process_and_validate_workflows(app_config.workflows)
+        if set(validate_workflows) != set(app_config.workflows):
+            self.update(app_config, workflows=validate_workflows)
         workflows = [{}]
+
         # 8.將數據轉換成字典後返回
         return self._process_and_transformer_app_config(
             validate_model_config,
@@ -156,6 +159,35 @@ class AppConfigService(BaseService):
 
         return tools
 
+    def get_langchain_tools_by_workflow_ids(
+            self,
+            workflow_ids: list[UUID]
+    ) -> list[BaseTool]:
+        """根據傳遞的工作流配置列表獲取langchain工具列表"""
+        # 1.根據傳遞的工作流id查詢工作流記錄資訊
+        workflow_records = self.db.session.query(Workflow).filter(
+            Workflow.id.in_(workflow_ids),
+            Workflow.status == WorkflowStatus.PUBLISHED,
+        ).all()
+
+        # 2.循環遍歷所有工作流記錄列表
+        workflows = []
+        for workflow_record in workflow_records:
+            try:
+                # 3.創建工作流工具
+                workflow_tool = WorkflowTool(workflow_config=WorkflowConfig(
+                    account_id=workflow_record.account_id,
+                    name=f"wf_{workflow_record.tool_call_name}",
+                    description=workflow_record.description,
+                    nodes=workflow_record.graph.get("nodes", []),
+                    edges=workflow_record.graph.get("edges", []),
+                ))
+                workflows.append(workflow_tool)
+            except Exception:
+                continue
+
+        return workflows
+
     @classmethod
     def _process_and_transformer_app_config(
             cls,
@@ -186,7 +218,10 @@ class AppConfigService(BaseService):
             "created_at": datetime_to_timestamp(app_config.created_at),
         }
 
-    def _process_and_validate_datasets(self, origin_datasets: list[dict]) -> tuple[list[dict], list[dict]]:
+    def _process_and_validate_datasets(
+            self,
+            origin_datasets: list[dict]
+    ) -> tuple[list[dict], list[dict]]:
         """根據傳遞的知識庫並返回知識庫配置與校驗後的數據"""
         # 1.校驗知識庫配置列表，如果引用了不存在的/被刪除的知識庫，則需要剔除數據並更新，同時獲取知識庫的額外資訊
         datasets = []
@@ -233,7 +268,10 @@ class AppConfigService(BaseService):
 
         return url
 
-    def _process_and_validate_tools(self, origin_tools: list[dict]) -> tuple[list[dict], list[dict]]:
+    def _process_and_validate_tools(
+            self,
+            origin_tools: list[dict]
+    ) -> tuple[list[dict], list[dict]]:
         """根據傳遞的原始工具資訊進行處理和校驗"""
         # 1.循環遍歷工具列表刪除已被刪除的工具
         validate_tools = []
@@ -317,7 +355,10 @@ class AppConfigService(BaseService):
 
         return tools, validate_tools
 
-    def _process_and_validate_model_config(self, origin_model_config: dict[str, Any]) -> dict[str, Any]:
+    def _process_and_validate_model_config(
+            self,
+            origin_model_config: dict[str, Any]
+    ) -> dict[str, Any]:
         """根據傳遞的模型配置處理並校驗，隨後返回校驗後的資訊"""
         # 1.判斷model_config是否為字典，如果不是則直接返回預設值
         if not isinstance(origin_model_config, dict):
@@ -391,28 +432,31 @@ class AppConfigService(BaseService):
 
         return model_config
 
-    # def _process_and_validate_workflows(self, origin_workflows: list[UUID]) -> tuple[list[dict], list[UUID]]:
-    #     """根據傳遞的工作流列表並返回工作流配置和校驗後的數據"""
-    #     # 1.校驗工作流配置列表，如果引用了不存在/被刪除的工作流，則需要提出數據並更新，同時獲取工作流的額外資訊
-    #     workflows = []
-    #     workflow_records = self.db.session.query(Workflow).filter(
-    #         Workflow.id.in_(origin_workflows),
-    #         Workflow.status == WorkflowStatus.PUBLISHED,
-    #     ).all()
-    #     workflow_dict = {str(workflow_record.id): workflow_record for workflow_record in workflow_records}
-    #     workflow_sets = set(workflow_dict.keys())
-    #
-    #     # 2.計算存在的工作流id列表，為了保留原始順序，使用列表循環的方式來判斷
-    #     validate_workflows = [workflow_id for workflow_id in origin_workflows if workflow_id in workflow_sets]
-    #
-    #     # 3.循環獲取工作流數據
-    #     for workflow_id in validate_workflows:
-    #         workflow = workflow_dict.get(str(workflow_id))
-    #         workflows.append({
-    #             "id": str(workflow.id),
-    #             "name": workflow.name,
-    #             "icon": workflow.icon,
-    #             "description": workflow.description,
-    #         })
-    #
-    #     return workflows, validate_workflows
+    def _process_and_validate_workflows(
+            self,
+            origin_workflows: list[UUID]
+    ) -> tuple[list[dict], list[UUID]]:
+        """根據傳遞的工作流列表並返回工作流配置和校驗後的數據"""
+        # 1.校驗工作流配置列表，如果引用了不存在/被刪除的工作流，則需要提出數據並更新，同時獲取工作流的額外資訊
+        workflows = []
+        workflow_records = self.db.session.query(Workflow).filter(
+            Workflow.id.in_(origin_workflows),
+            Workflow.status == WorkflowStatus.PUBLISHED,
+        ).all()
+        workflow_dict = {str(workflow_record.id): workflow_record for workflow_record in workflow_records}
+        workflow_sets = set(workflow_dict.keys())
+
+        # 2.計算存在的工作流id列表，為了保留原始順序，使用列表循環的方式來判斷
+        validate_workflows = [workflow_id for workflow_id in origin_workflows if workflow_id in workflow_sets]
+
+        # 3.循環獲取工作流數據
+        for workflow_id in validate_workflows:
+            workflow = workflow_dict.get(str(workflow_id))
+            workflows.append({
+                "id": str(workflow.id),
+                "name": workflow.name,
+                "icon": workflow.icon,
+                "description": workflow.description,
+            })
+
+        return workflows, validate_workflows
